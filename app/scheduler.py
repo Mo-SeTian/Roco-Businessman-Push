@@ -7,10 +7,14 @@
 
 from __future__ import annotations
 
+import json
 import logging
+import os
+import tempfile
 import threading
 import time
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 from .channels import send_instance
@@ -34,10 +38,34 @@ class SchedulerService:
             "last_message": "尚未执行",
             "last_results": [],
         }
+        # 执行历史持久化到 /data，重启后状态页仍可见
+        self._snapshot_path = Path(state_store.path).parent / "scheduler_state.json"
+        self._restore_snapshot()
         self._wake = threading.Event()
         self._run_lock = threading.Lock()
         self._stop_flag = threading.Event()
         self._thread: threading.Thread | None = None
+
+    def _restore_snapshot(self) -> None:
+        try:
+            data = json.loads(self._snapshot_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return
+        if isinstance(data, dict):
+            for key in ("last_results", "last_message", "last_fire_at"):
+                if key in data:
+                    self.state[key] = data[key]
+
+    def _save_snapshot(self) -> None:
+        try:
+            self._snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+            payload = {k: self.state[k] for k in ("last_results", "last_message", "last_fire_at")}
+            fd, tmp = tempfile.mkstemp(dir=str(self._snapshot_path.parent), suffix=".tmp")
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(payload, f, ensure_ascii=False, indent=1)
+            os.replace(tmp, self._snapshot_path)
+        except OSError as exc:
+            log.warning("调度状态保存失败：%s", exc)
 
     # ---- 生命周期 ----
 
@@ -213,3 +241,4 @@ class SchedulerService:
         if not pushed_any and total and ok_count == 0:
             self.state["last_message"] += "（注意：全部失败）"
         log.info(self.state["last_message"])
+        self._save_snapshot()

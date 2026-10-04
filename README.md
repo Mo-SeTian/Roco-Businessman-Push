@@ -76,6 +76,18 @@ docker compose up -d --build
 
 Server 酱/PushPlus/企微/WxPusher 收 Markdown，Bark 收等价纯文本。接口返回的都是当前货架上的商品：`next_refresh_time`（档位轮换）与 `disable_time`（显式下架）是可购窗口的**结束**时刻，取较早者；接口没有开始时间字段，**开始按档位推算**——时段商品取当前档起点（如 16:00-20:00 的黄石榴石），全天供应商品取当天 8:00 开市。
 
+## 持久化
+
+所有配置与状态都落在容器的 **`/data` 目录**，把一个宿主机文件夹映射进去即可完整持久化（docker-compose 已默认映射 `./data:/data`）：
+
+| 文件 | 内容 |
+| --- | --- |
+| `/data/config.json` | 全部 WebUI 配置：API Key、渠道实例（含密钥）、推送任务、控制台登录凭据 |
+| `/data/state.json` | 各 任务+商店 的数据指纹（去重） |
+| `/data/scheduler_state.json` | 上次执行结果与时间（重启后状态页仍可见） |
+
+用 `docker run` 时记得手动挂载：`-v /your/path/data:/data`。控制台登录会话存于内存，重启后需重新登录（有意为之）。
+
 ## 常见问题
 
 - **401**：API Key 未配置/无效，或没订阅「RoCom Ingame 商店信息」。
