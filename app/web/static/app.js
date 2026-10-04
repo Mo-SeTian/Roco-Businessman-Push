@@ -35,7 +35,7 @@ async function refresh(silent = false) {
   if (!silent) toast("已刷新");
 }
 
-function renderAll() { renderStatus(); renderTasks(); renderChannels(); renderSettings(); }
+function renderAll() { renderStatus(); renderTasks(); renderChannels(); renderSettings(); renderAccount(); }
 
 /* ---------- 状态 ---------- */
 
@@ -248,15 +248,44 @@ const SETTING_FIELDS = [
 ];
 
 function renderSettings() {
+  const form = $("settings-form");
+  if (form.contains(document.activeElement)) return;  // 正在填写时跳过自动刷新重渲染
   const values = {
     rocom_api_key: "", shop_ids_text: (cfg.shop_ids || []).join(","),
     title_prefix: cfg.title_prefix, wait_ms: cfg.wait_ms, http_timeout: cfg.http_timeout,
     max_retries: cfg.max_retries, retry_delay: cfg.retry_delay,
   };
-  $("settings-form").innerHTML = SETTING_FIELDS.map(([key, label, type]) => {
+  form.innerHTML = SETTING_FIELDS.map(([key, label, type]) => {
     const ph = key === "rocom_api_key" && cfg.has_rocom_api_key ? "已配置（留空保持不变）" : "";
     return `<label>${label}</label><input type="${type}" id="set-${key}" value="${esc(values[key])}" placeholder="${esc(ph)}">`;
   }).join("");
+}
+
+function renderAccount() {
+  const form = $("account-form");
+  if (form.contains(document.activeElement)) return;
+  form.innerHTML = `
+    <label>当前用户名</label><input type="text" id="acc-cur" value="${esc(S.auth_username || "admin")}" disabled>
+    <label>当前密码（验证身份）</label><input type="password" id="acc-old" autocomplete="current-password">
+    <label>新用户名</label><input type="text" id="acc-user" value="${esc(S.auth_username || "admin")}">
+    <label>新密码（至少 4 位）</label><input type="password" id="acc-pass" autocomplete="new-password">
+    <label>确认新密码</label><input type="password" id="acc-pass2" autocomplete="new-password">`;
+}
+
+async function saveAccount() {
+  const p1 = $("acc-pass").value, p2 = $("acc-pass2").value;
+  if (p1 !== p2) { toast("两次输入的新密码不一致"); return; }
+  if (p1.length < 4) { toast("新密码至少 4 位"); return; }
+  try {
+    const r = await api("/api/account", { method: "POST", body: {
+      old_password: $("acc-old").value,
+      username: $("acc-user").value.trim(),
+      new_password: p1,
+    } });
+    toast(r.message);
+    $("acc-old").value = ""; $("acc-pass").value = ""; $("acc-pass2").value = "";
+    await refresh(true);
+  } catch (e) { toast(e.message, 4000); }
 }
 
 async function saveSettings() {
@@ -311,6 +340,7 @@ $("run-all").onclick = async () => {
 $("task-add").onclick = () => editTask(null);
 $("ch-add").onclick = () => editChannel(null);
 $("settings-save").onclick = saveSettings;
+$("account-save").onclick = saveAccount;
 
 refresh().catch(e => console.error(e));
 setInterval(() => refresh(true).catch(() => {}), 30000);  // 每 30 秒自动刷新状态

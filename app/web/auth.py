@@ -55,6 +55,13 @@ def session_valid(token: str | None) -> bool:
     return True
 
 
+def destroy_others(keep_token: str | None) -> None:
+    """销毁除 keep_token 外的所有会话（修改密码后踢掉其他登录）。"""
+    with _lock:
+        for token in [t for t in _tokens if t != keep_token]:
+            _tokens.pop(token, None)
+
+
 def destroy_session(token: str | None) -> None:
     with _lock:
         _tokens.pop(token or "", None)

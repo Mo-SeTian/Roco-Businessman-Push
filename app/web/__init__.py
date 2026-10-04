@@ -105,8 +105,25 @@ def create_app(store: AppConfigStore | None = None, scheduler: SchedulerService 
             "channel_types": CHANNEL_TYPES,
             "scheduler": dict(app_scheduler.state),
             "config_issue": app_store.last_issue,
+            "auth_username": str(cfg.console_auth.get("username") or "admin"),
             "now": datetime.now().isoformat(sep=" ", timespec="seconds"),
         }
+
+    async def api_change_account(request: Request, _=Depends(_api_guard)):
+        payload = await request.json()
+        cfg = app_store.load()
+        current_user = str(cfg.console_auth.get("username") or "admin")
+        if not web_auth.credentials_valid(cfg, current_user, str(payload.get("old_password", ""))):
+            raise HTTPException(status_code=400, detail="当前密码不正确")
+        new_username = str(payload.get("username", "")).strip()
+        new_password = str(payload.get("new_password", ""))
+        if not new_username:
+            raise HTTPException(status_code=400, detail="用户名不能为空")
+        if len(new_password) < 4:
+            raise HTTPException(status_code=400, detail="新密码至少 4 位")
+        app_store.save_console_password(new_username, new_password)
+        web_auth.destroy_others(request.cookies.get(web_auth.SESSION_COOKIE))
+        return JSONResponse({"ok": True, "message": "账号密码已更新，其他已登录会话已失效"})
 
     async def api_save_config(request: Request, _=Depends(_api_guard)):
         payload = await request.json()
@@ -155,6 +172,7 @@ def create_app(store: AppConfigStore | None = None, scheduler: SchedulerService 
     app.add_api_route("/api/login", api_login, methods=["POST"])
     app.add_api_route("/api/logout", api_logout, methods=["POST"])
     app.add_api_route("/api/state", api_state, methods=["GET"])
+    app.add_api_route("/api/account", api_change_account, methods=["POST"])
     app.add_api_route("/api/config", api_save_config, methods=["POST"])
     app.add_api_route("/api/test-channel", api_test_channel, methods=["POST"])
     app.add_api_route("/api/run-task", api_run_task, methods=["POST"])

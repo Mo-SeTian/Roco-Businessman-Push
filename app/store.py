@@ -33,6 +33,15 @@ ENV_CHANNEL_SEEDS = [  # (类型, {字段名: 环境变量}, 实例名)
                   "topic_ids": "WXPUSHER_TOPIC_IDS"}, "WxPusher(环境变量)"),
 ]
 DEFAULT_TASK_TIMES = ["08:05", "12:05", "16:05", "20:05"]
+DEFAULT_CONSOLE_PASSWORD = "admin"
+
+
+def _default_console_auth(env: GlobalEnv) -> dict:
+    """默认账号密码 admin/admin；CONSOLE_USERNAME/CONSOLE_PASSWORD 仅作首次初始化覆盖。"""
+    return {
+        "username": env.console_username or "admin",
+        "password_sha256": _sha256(env.console_password or DEFAULT_CONSOLE_PASSWORD),
+    }
 
 
 class AppConfigStore:
@@ -92,11 +101,8 @@ class AppConfigStore:
                 "channel_ids": [c["id"] for c in data["channels"]],
                 "only_on_change": True,
             }]
-        if not data.get("console_auth") and env.console_password:
-            data["console_auth"] = {
-                "username": env.console_username,
-                "password_sha256": _sha256(env.console_password),
-            }
+        if not data.get("console_auth"):
+            data["console_auth"] = _default_console_auth(env)
         return AppConfig.from_mapping(data)
 
     def _seed_from_env(self) -> AppConfig:
@@ -112,10 +118,7 @@ class AppConfigStore:
             "title_prefix": env.title_prefix,
             "channels": channels,
             "tasks": [],
-            "console_auth": (
-                {"username": env.console_username, "password_sha256": _sha256(env.console_password)}
-                if env.console_password else {}
-            ),
+            "console_auth": _default_console_auth(env),
         }
         if channels:
             payload["tasks"] = [{

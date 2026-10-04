@@ -8,7 +8,7 @@
 - **多渠道多实例**：Server 酱 / Bark / PushPlus / 企业微信应用 / WxPusher，同一种渠道可建多个实例（比如两台设备的 Bark），任务里自由勾选。
 - **去重**：按 任务+商店 记录数据指纹，内容没变不推；任务可单独开关"仅变化时推送"。
 - **容错**：接口 202（数据未就绪）/网络错误自动重试；单渠道失败不影响其他渠道。
-- **WebUI**：状态面板（下次执行、上次结果）、任务/渠道增删改、按实例或按草稿测试推送、手动立即执行。
+- **WebUI**：状态面板（下次执行、上次结果）、任务/渠道增删改、按实例或按草稿测试推送、手动立即执行；默认账号密码 `admin/admin`，可在登录后修改。
 
 接口文档：<https://rocom.apifox.cn/466047235e0>（GET）/ <https://rocom.apifox.cn/466047236e0>（POST）
 
@@ -29,9 +29,9 @@ docker compose up -d --build
 
 也可以环境变量一把梭（见 `.env.example`）：首次启动时配了凭据的渠道会自动播种成实例和默认任务，之后仍可在 WebUI 里调整。
 
-### 3. 登录认证
+### 3. 登录
 
-默认局域网免登录。要加密码，设置环境变量 `CONSOLE_USERNAME` / `CONSOLE_PASSWORD`（或在 `/data/config.json` 的 `console_auth` 里配置）。
+控制台**默认开启登录**，初始账号密码均为 **`admin` / `admin`**。登录后在「全局设置 → 修改账号密码」中修改（修改后其他已登录会话会被踢出）。`CONSOLE_USERNAME` / `CONSOLE_PASSWORD` 环境变量仅用于首次初始化时覆盖默认值。
 
 ## 运行模式
 
@@ -54,7 +54,7 @@ docker compose up -d --build
 | `ROCOM_MAX_RETRIES` / `ROCOM_RETRY_DELAY` | `3` / `20` | 202/网络错误重试次数与间隔（秒） |
 | `PUSH_TITLE_PREFIX` | `洛克王国远行商人` | 推送标题前缀 |
 | `WEB_PORT` | `19892` | Web 控制台端口 |
-| `CONSOLE_USERNAME` / `CONSOLE_PASSWORD` | `admin` / 空 | 控制台登录（空 = 免登录） |
+| `CONSOLE_USERNAME` / `CONSOLE_PASSWORD` | `admin` / `admin` | 首次初始化的控制台账号密码（之后在 WebUI 里修改） |
 | `CONFIG_PATH` / `STATE_FILE` | `/data/config.json`、`/data/state.json` | 配置与状态文件 |
 | `RUN_ON_START` | `1` | 调度启动时立即执行一轮 |
 | `SERVERCHAN_SENDKEY`、`BARK_*`、`PUSHPLUS_*`、`WECOM_*`、`WXPUSHER_*` | — | 渠道种子（首次启动播种为实例） |
