@@ -62,11 +62,12 @@ class ChannelInstance:
         }
 
     def missing_fields(self) -> list[str]:
-        """缺配置的字段 label 列表（有默认值视为已填）。"""
+        """缺配置的必填字段 label 列表（可选字段不算缺失；有默认值视为已填）。"""
         missing = []
         for f in channel_fields(self.type):
-            value = self.config.get(f["name"])
-            if not value and f.get("default") is None:
+            if not f.get("required"):
+                continue
+            if not (self.config.get(f["name"]) or f.get("default") or "").strip():
                 missing.append(f["label"])
         return missing
 
@@ -97,7 +98,7 @@ class TaskConfig:
     times: list[str]
     channel_ids: list[str]
     enabled: bool = True
-    only_on_change: bool = True  # 数据无变化时跳过推送
+    only_on_change: bool = False  # 默认每次都按接口返回推送；开启后与上次返回完全一致时跳过
 
     @classmethod
     def from_mapping(cls, data: dict) -> "TaskConfig":
@@ -107,7 +108,7 @@ class TaskConfig:
             times=normalize_times(data.get("times")),
             channel_ids=[str(c).strip() for c in (data.get("channel_ids") or []) if str(c).strip()],
             enabled=bool(data.get("enabled", True)),
-            only_on_change=bool(data.get("only_on_change", True)),
+            only_on_change=bool(data.get("only_on_change", False)),
         )
 
     def to_dict(self) -> dict:

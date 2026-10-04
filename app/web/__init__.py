@@ -140,14 +140,27 @@ def create_app(store: AppConfigStore | None = None, scheduler: SchedulerService 
 
     async def api_test_channel(request: Request, _=Depends(_api_guard)):
         payload = await request.json()
-        if payload.get("id"):  # 已保存实例：服务端取完整配置（含密钥）
+        draft = payload.get("instance") if isinstance(payload.get("instance"), dict) else {}
+        if payload.get("id"):  # 已保存实例：以服务端配置为基础（密钥打码回显为空）
             cfg = app_store.load()
-            inst = next((c for c in cfg.channels if c.id == str(payload["id"])), None)
-            if inst is None:
+            saved = next((c for c in cfg.channels if c.id == str(payload["id"])), None)
+            if saved is None:
                 raise HTTPException(status_code=404, detail="渠道不存在")
+            inst = saved
+            if draft.get("type") == saved.type:
+                # 表单里新填的字段生效；留空（=保持不变）的字段沿用已保存密钥
+                merged_config = dict(saved.config)
+                for key, value in (draft.get("config") or {}).items():
+                    if str(value).strip():
+                        merged_config[str(key)] = str(value).strip()
+                inst = ChannelInstance(
+                    id=saved.id, type=saved.type,
+                    name=str(draft.get("name") or "").strip() or saved.name,
+                    enabled=True, config=merged_config,
+                )
         else:  # 未保存草稿：用前端提交的配置直接测
             try:
-                inst = ChannelInstance.from_mapping(payload.get("instance") or {})
+                inst = ChannelInstance.from_mapping(draft)
             except ValueError as exc:
                 raise HTTPException(status_code=400, detail=str(exc)) from exc
         now_text = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -155,6 +168,16 @@ def create_app(store: AppConfigStore | None = None, scheduler: SchedulerService 
         md = f"**{inst.name}** 渠道配置正确。\n\n- 测试时间：{now_text}"
         ok, detail = send_instance(inst, title, md, f"{inst.name} 渠道测试推送（{now_text}）")
         return JSONResponse({"ok": ok, "message": detail}, status_code=200 if ok else 400)
+
+    async def api_logs(request: Request, _=Depends(_api_guard)):
+        from ..logs import ring
+
+        level = request.query_params.get("level", "DEBUG").upper()
+        try:
+            limit = min(int(request.query_params.get("limit", "500")), 2000)
+        except ValueError:
+            limit = 500
+        return {"logs": ring.query(min_level=level, limit=limit)}
 
     async def api_run_task(request: Request, _=Depends(_api_guard)):
         payload = await request.json()
@@ -177,5 +200,6 @@ def create_app(store: AppConfigStore | None = None, scheduler: SchedulerService 
     app.add_api_route("/api/test-channel", api_test_channel, methods=["POST"])
     app.add_api_route("/api/run-task", api_run_task, methods=["POST"])
     app.add_api_route("/api/run-all", api_run_all, methods=["POST"])
+    app.add_api_route("/api/logs", api_logs, methods=["GET"])
     app.mount("/static", StaticFiles(directory=str(PACKAGE_DIR / "static")), name="static")
     return app

@@ -69,7 +69,7 @@ function renderTasks() {
     return `<div class="item">
       <div class="info">
         <div class="title">${esc(t.name)} ${t.enabled ? "" : '<span class="tag off">已停用</span>'}
-          ${t.only_on_change ? '<span class="tag">仅变化推送</span>' : '<span class="tag off">每次都推</span>'}</div>
+          ${t.only_on_change ? '<span class="tag">去重</span>' : '<span class="tag">每次都推</span>'}</div>
         <div class="meta">⏰ ${t.times.join("、")} ｜ 📤 ${chNames.length ? esc(chNames.join("、")) : "未选渠道"}</div>
       </div>
       <div class="actions" style="margin:0">
@@ -96,7 +96,7 @@ function editTask(id) {
         ${esc(c.name)} <span class="tag">${esc(S.channel_types[c.type]?.label || c.type)}</span></label>`).join("")}
     </div>
     <div class="checkbox"><input type="checkbox" id="te-ooc" ${t.only_on_change ? "checked" : ""}>
-      仅在数据变化时推送（去重）</div>
+      去重：接口返回与上次完全一致时跳过推送（默认每次都推）</div>
     <div class="checkbox"><input type="checkbox" id="te-en" ${t.enabled ? "checked" : ""}>启用该任务</div>
     <div class="actions">
       <button class="primary" onclick="saveTask()">保存</button>
@@ -158,6 +158,22 @@ function renderChannels() {
       </div>
     </div>`;
   }).join("") : `<div class="empty">还没有渠道实例，点右上角「新建渠道」</div>`;
+}
+
+/* ---------- 日志 ---------- */
+
+async function refreshLogs() {
+  const data = await api(`/api/logs?level=${$("log-level").value}&limit=1000`);
+  const rows = data.logs || [];
+  $("log-list").innerHTML = rows.length
+    ? `<table><tr><th>时间</th><th>等级</th><th>来源</th><th>内容</th></tr>` +
+      rows.map(l => `<tr><td class="mono">${esc(l.ts)}</td>` +
+        `<td class="lv-${esc(l.level.toLowerCase())}">${esc(l.level)}</td>` +
+        `<td>${esc(l.logger)}</td><td class="mono">${esc(l.message)}</td></tr>`).join("") +
+      `</table>`
+    : `<div class="empty">暂无日志</div>`;
+  const box = $("log-list");
+  box.scrollTop = box.scrollHeight;
 }
 
 function channelFieldsHTML(type, config) {
@@ -231,8 +247,13 @@ async function testChannel(id) {
 }
 
 async function testChannelDraft() {
-  try { const r = await api("/api/test-channel", { method: "POST", body: { instance: collectChannelDraft() } }); toast(r.ok ? "测试已发送 ✔" : "测试失败：" + r.message, 4000); }
-  catch (e) { toast(e.message, 4000); }
+  try {
+    const draft = collectChannelDraft();
+    // 编辑已保存实例时带上 id：后端会用已保存密钥补齐表单里留空（保持不变）的字段
+    const body = editingChannelId ? { id: editingChannelId, instance: draft } : { instance: draft };
+    const r = await api("/api/test-channel", { method: "POST", body });
+    toast(r.ok ? "测试已发送 ✔" : "测试失败：" + r.message, 4000);
+  } catch (e) { toast(e.message, 4000); }
 }
 
 /* ---------- 设置 ---------- */
@@ -331,6 +352,7 @@ $("tabs").addEventListener("click", (e) => {
   const btn = e.target.closest("button"); if (!btn) return;
   document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b === btn));
   document.querySelectorAll("main section").forEach(s => s.hidden = s.id !== "tab-" + btn.dataset.tab);
+  if (btn.dataset.tab === "logs") refreshLogs().catch(err => toast(err.message, 4000));
 });
 $("logout").onclick = async () => { await fetch("/api/logout", { method: "POST" }); location.href = "/login"; };
 $("run-all").onclick = async () => {
@@ -341,6 +363,11 @@ $("task-add").onclick = () => editTask(null);
 $("ch-add").onclick = () => editChannel(null);
 $("settings-save").onclick = saveSettings;
 $("account-save").onclick = saveAccount;
+$("log-refresh").onclick = () => refreshLogs().catch(e => toast(e.message, 4000));
+$("log-level").onchange = () => refreshLogs().catch(e => toast(e.message, 4000));
 
 refresh().catch(e => console.error(e));
-setInterval(() => refresh(true).catch(() => {}), 30000);  // 每 30 秒自动刷新状态
+setInterval(() => {
+  refresh(true).catch(() => {});
+  if (!$("tab-logs").hidden) refreshLogs().catch(() => {});   // 日志页可见时跟随刷新
+}, 30000);

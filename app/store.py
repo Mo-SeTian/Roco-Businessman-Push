@@ -99,7 +99,7 @@ class AppConfigStore:
                 "name": "每次刷新推送",
                 "times": DEFAULT_TASK_TIMES,
                 "channel_ids": [c["id"] for c in data["channels"]],
-                "only_on_change": True,
+                "only_on_change": False,
             }]
         if not data.get("console_auth"):
             data["console_auth"] = _default_console_auth(env)
@@ -126,7 +126,7 @@ class AppConfigStore:
                 "name": "每次刷新推送",
                 "times": DEFAULT_TASK_TIMES,
                 "channel_ids": [c["id"] for c in channels],
-                "only_on_change": True,
+                "only_on_change": False,
             }]
         return AppConfig.from_mapping(payload)
 

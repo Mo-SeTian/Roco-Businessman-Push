@@ -32,6 +32,10 @@ def setup_logging(level: str = "INFO") -> None:
         format="%(asctime)s %(levelname)-7s %(name)s: %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    # 环形缓冲供 Web 控制台「日志」页查看（采集级别跟随 LOG_LEVEL）
+    from .logs import ring
+
+    logging.getLogger().addHandler(ring)
 
 
 def run_once_all(store: AppConfigStore, state_store: StateStore) -> None:

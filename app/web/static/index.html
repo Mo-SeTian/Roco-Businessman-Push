@@ -17,6 +17,7 @@
   <button data-tab="tasks">推送任务</button>
   <button data-tab="channels">推送渠道</button>
   <button data-tab="settings">全局设置</button>
+  <button data-tab="logs">日志</button>
 </nav>
 <main>
   <section id="tab-status">
@@ -48,6 +49,23 @@
     <p class="hint">修改后其他已登录的会话将被踢出，需用新凭据重新登录。</p>
     <div class="form" id="account-form"></div>
     <button id="account-save" class="primary">更新账号密码</button>
+  </section>
+
+  <section id="tab-logs" hidden>
+    <div class="row-head">
+      <h2>系统日志</h2>
+      <div class="actions" style="margin:0">
+        <select id="log-level" class="sel">
+          <option value="DEBUG">DEBUG 及以上</option>
+          <option value="INFO" selected>INFO 及以上</option>
+          <option value="WARNING">WARNING 及以上</option>
+          <option value="ERROR">ERROR 及以上</option>
+        </select>
+        <button id="log-refresh">刷新</button>
+      </div>
+    </div>
+    <p class="hint">显示最近 2000 条运行日志（采集级别由 LOG_LEVEL 环境变量决定，默认 INFO）。</p>
+    <div id="log-list"></div>
   </section>
 </main>
 <div id="toast" hidden></div>

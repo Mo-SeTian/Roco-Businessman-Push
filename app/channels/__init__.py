@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
-from ..models import ChannelInstance
 from . import bark, pushplus, serverchan, wecom, wxpusher
 from .manifest import CHANNEL_TYPES
+
+if TYPE_CHECKING:  # 延迟引用，避免与 app.models 循环导入
+    from ..models import ChannelInstance
 
 log = logging.getLogger("push")
 
@@ -21,7 +24,7 @@ _SENDERS = {
 assert set(_SENDERS) == set(CHANNEL_TYPES), "manifest 与 sender 注册表不一致"
 
 
-def send_instance(inst: ChannelInstance, title: str, markdown: str, text: str) -> tuple[bool, str]:
+def send_instance(inst: "ChannelInstance", title: str, markdown: str, text: str) -> tuple[bool, str]:
     """向单个渠道实例推送。返回 (是否成功, 说明)。"""
     missing = inst.missing_fields()
     if missing:
