@@ -41,7 +41,7 @@ def _redact_url(url: str) -> str:
 
 def _log_response(response: requests.Response, *_args, **_kwargs) -> None:
     try:
-        body = _BODY_REDACT.sub(r"\1****\2", response.text)[:300].replace("\n", " ")
+        body = _BODY_REDACT.sub(r"\1****\2", response.text)[:20000].replace("\n", " ")
     except Exception:  # noqa: BLE001
         body = "<响应体读取失败>"
     elapsed_ms = int(response.elapsed.total_seconds() * 1000)

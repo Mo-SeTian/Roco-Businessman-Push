@@ -161,14 +161,21 @@ function renderChannels() {
 
 /* ---------- 日志 ---------- */
 
+const LOG_MSG_FOLD = 160;  // 超过此长度的日志折叠，点击展开全部
+
+function logContentHTML(msg) {
+  if (msg.length <= LOG_MSG_FOLD) return esc(msg);
+  return `<details><summary>${esc(msg.slice(0, LOG_MSG_FOLD))}…（展开全部 ${msg.length} 字）</summary><pre>${esc(msg)}</pre></details>`;
+}
+
 async function refreshLogs() {
-  const data = await api(`/api/logs?level=${$("log-level").value}&limit=1000`);
+  const data = await api(`/api/logs?level=${$("log-level").value}&limit=2000`);
   const rows = data.logs || [];
   $("log-list").innerHTML = rows.length
-    ? `<table><tr><th>时间</th><th>等级</th><th>来源</th><th>内容</th></tr>` +
-      rows.map(l => `<tr><td class="mono">${esc(l.ts)}</td>` +
-        `<td class="lv-${esc(l.level.toLowerCase())}">${esc(l.level)}</td>` +
-        `<td>${esc(l.logger)}</td><td class="mono">${esc(l.message)}</td></tr>`).join("") +
+    ? `<table><tr><th class="nowrap">时间</th><th class="nowrap">等级</th><th class="nowrap">来源</th><th>内容</th></tr>` +
+      rows.map(l => `<tr><td class="nowrap mono">${esc(l.ts)}</td>` +
+        `<td class="nowrap lv-${esc(l.level.toLowerCase())}">${esc(l.level)}</td>` +
+        `<td class="nowrap">${esc(l.logger)}</td><td class="log-msg">${logContentHTML(l.message)}</td></tr>`).join("") +
       `</table>`
     : `<div class="empty">暂无日志</div>`;
   const box = $("log-list");
@@ -281,7 +288,8 @@ function renderSettings() {
   form.innerHTML = SETTING_FIELDS.map(([key, label, type]) => {
     const ph = key === "rocom_api_key" && cfg.has_rocom_api_key ? "已配置（留空保持不变）" : "";
     return `<label>${label}</label><input type="${type}" id="set-${key}" value="${esc(values[key])}" placeholder="${esc(ph)}">`;
-  }).join("");
+  }).join("") + `<div class="checkbox"><input type="checkbox" id="set-run-on-start" ${cfg.run_on_start ? "checked" : ""}>
+    启动容器时立即执行一轮（默认关闭；开启后每次重启都会先拉一次数据并按任务推送）</div>`;
 }
 
 function renderAccount() {
@@ -324,6 +332,7 @@ async function saveSettings() {
     retry_delay: +v("retry_delay") || 20,
     log_retention_days: +v("log_retention_days") || 7,
     history_days: +v("history_days") || 30,
+    run_on_start: $("set-run-on-start").checked,
   };
   try {
     await api("/api/config", { method: "POST", body });

@@ -90,7 +90,7 @@ class SchedulerService:
     def _loop(self) -> None:
         self.state["running"] = True
         try:
-            if self.store.env.run_on_start:
+            if self.store.load().run_on_start:
                 self._run_locked("启动执行", force=False)
             while not self._stop_flag.is_set():
                 cfg = self.store.load()

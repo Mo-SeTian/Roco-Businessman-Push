@@ -47,6 +47,15 @@ th{background:#faf9f5;font-weight:600;color:#666}
 #log-list{max-height:70vh;overflow:auto;background:#fff;border:1px solid var(--line);border-radius:10px;margin-top:10px}
 #log-list table{margin-top:0}
 .mono{font-family:ui-monospace,Consolas,"Courier New",monospace;font-size:12px;word-break:break-all}
+.nowrap{white-space:nowrap}
+#log-list td{vertical-align:top;line-height:1.6;padding:9px 12px}
+#log-list th.nowrap{white-space:nowrap}
+#log-list .log-msg{min-width:420px}
+#log-list summary{cursor:pointer;list-style:none}
+#log-list summary::-webkit-details-marker{display:none}
+#log-list summary:hover{color:var(--primary)}
+#log-list pre{margin:6px 0 0;padding:10px 12px;background:#faf9f5;border:1px solid var(--line);border-radius:8px;
+  white-space:pre-wrap;word-break:break-all;font-family:ui-monospace,Consolas,"Courier New",monospace;font-size:12px;line-height:1.6}
 .lv-debug{color:#999}.lv-info{color:#1677ff}.lv-warning{color:#d48806}.lv-error{color:var(--danger)}.lv-critical{color:var(--danger);font-weight:700}
 .dim{color:#bbb}
 .slot-cell{white-space:nowrap;font-weight:600}

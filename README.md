@@ -56,7 +56,7 @@ docker compose up -d --build
 | `WEB_PORT` | `19892` | Web 控制台端口 |
 | `CONSOLE_USERNAME` / `CONSOLE_PASSWORD` | `admin` / `admin` | 首次初始化的控制台账号密码（之后在 WebUI 里修改） |
 | `CONFIG_PATH` / `STATE_FILE` | `/data/config.json`、`/data/state.json` | 配置与状态文件 |
-| `RUN_ON_START` | `1` | 调度启动时立即执行一轮 |
+| `RUN_ON_START` | `0` | 启动容器时立即执行一轮（默认关闭，可在 WebUI 设置页修改） |
 | `LOG_LEVEL` | `INFO` | 日志采集级别（控制台/文件/WebUI 日志页共用，`DEBUG` 最详细） |
 | `LOG_DIR` | `/logs` | 文件日志目录（与 `/data` 同级） |
 | `LOG_RETENTION_DAYS` | `7` | 文件日志保留天数，到期自动清理 |

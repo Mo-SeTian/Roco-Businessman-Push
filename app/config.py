@@ -36,8 +36,8 @@ class GlobalEnv:
     web_host: str = "0.0.0.0"
     web_port: int = 19892
     console_username: str = "admin"
-    console_password: str = ""  # 环境变量明文；为空且 config.json 也无密码时免登录
-    run_on_start: bool = True
+    console_password: str = ""  # 环境变量明文；仅首次初始化覆盖默认 admin/admin
+    run_on_start: bool = False  # RUN_ON_START 种子值，默认关闭（可在 WebUI 设置页修改）
 
     @classmethod
     def from_env(cls, env: dict | None = None) -> "GlobalEnv":
@@ -71,7 +71,7 @@ class GlobalEnv:
             web_port=_int(e.get("WEB_PORT"), 19892),
             console_username=e.get("CONSOLE_USERNAME", cls.console_username).strip() or "admin",
             console_password=e.get("CONSOLE_PASSWORD", "").strip(),
-            run_on_start=_bool(e.get("RUN_ON_START"), True),
+            run_on_start=_bool(e.get("RUN_ON_START"), False),
         )
 
 

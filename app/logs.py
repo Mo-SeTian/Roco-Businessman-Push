@@ -12,6 +12,10 @@ _LEVELS = {"DEBUG": 10, "INFO": 20, "WARNING": 30, "ERROR": 40, "CRITICAL": 50}
 
 
 class RingBufferHandler(logging.Handler):
+    """内存环形缓冲。消息不截断（仅 50000 字符防御上限），前端负责长文本折叠展示。"""
+
+    MAX_MSG = 50000
+
     def __init__(self, capacity: int = 2000):
         super().__init__()
         self._buf: deque[dict] = deque(maxlen=capacity)
@@ -26,7 +30,7 @@ class RingBufferHandler(logging.Handler):
             "ts": datetime.fromtimestamp(record.created).strftime("%m-%d %H:%M:%S"),
             "level": record.levelname,
             "logger": record.name,
-            "message": message[:2000],
+            "message": message[: self.MAX_MSG],
         }
         with self._lock:
             self._buf.append(entry)

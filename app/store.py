@@ -94,6 +94,7 @@ class AppConfigStore:
         data.setdefault("title_prefix", env.title_prefix)
         data.setdefault("log_retention_days", env.log_retention_days)
         data.setdefault("history_days", env.history_days)
+        data.setdefault("run_on_start", env.run_on_start)
         if not data.get("channels"):
             data["channels"] = self._env_channels()
         if not data.get("tasks") and data["channels"]:
@@ -120,6 +121,7 @@ class AppConfigStore:
             "title_prefix": env.title_prefix,
             "log_retention_days": env.log_retention_days,
             "history_days": env.history_days,
+            "run_on_start": env.run_on_start,
             "channels": channels,
             "tasks": [],
             "console_auth": _default_console_auth(env),

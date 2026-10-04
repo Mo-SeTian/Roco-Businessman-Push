@@ -150,6 +150,7 @@ class AppConfig:
     title_prefix: str = "洛克王国远行商人"
     log_retention_days: int = 7    # 文件日志保留天数
     history_days: int = 30         # 调用历史保留天数
+    run_on_start: bool = False     # 启动时立即执行一轮（默认关闭）
     channels: list[ChannelInstance] = field(default_factory=list)
     tasks: list[TaskConfig] = field(default_factory=list)
     console_auth: dict = field(default_factory=dict)  # {username, password_sha256}
@@ -165,6 +166,7 @@ class AppConfig:
             "title_prefix": self.title_prefix,
             "log_retention_days": self.log_retention_days,
             "history_days": self.history_days,
+            "run_on_start": self.run_on_start,
             "channels": [c.to_dict() for c in self.channels],
             "tasks": [t.to_dict() for t in self.tasks],
             "console_auth": dict(self.console_auth),
@@ -206,6 +208,7 @@ class AppConfig:
             title_prefix=str(data.get("title_prefix") or "").strip() or "洛克王国远行商人",
             log_retention_days=_int(data.get("log_retention_days"), 7),
             history_days=_int(data.get("history_days"), 30),
+            run_on_start=_bool(data.get("run_on_start"), False),
             channels=channels,
             tasks=tasks,
             console_auth=dict(data.get("console_auth") or {}),
@@ -217,6 +220,12 @@ def _int(value, default: int) -> int:
         return int(value)
     except (TypeError, ValueError):
         return default
+
+
+def _bool(value, default: bool) -> bool:
+    if value is None or value == "":
+        return default
+    return str(value).strip().lower() in ("1", "true", "yes", "on", "y")
 
 
 def now_ts() -> int:
