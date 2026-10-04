@@ -465,12 +465,21 @@ async function refreshHistory() {
 
 /* ---------- 初始化 ---------- */
 
+function activateTab(name) {
+  const btn = document.querySelector(`#tabs button[data-tab="${name}"]`);
+  if (!btn) return false;
+  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b === btn));
+  document.querySelectorAll("main section").forEach(s => s.hidden = s.id !== "tab-" + name);
+  if (name === "logs") refreshLogs().catch(() => {});
+  if (name === "history") refreshHistory().catch(() => {});
+  history.replaceState(null, "", "#" + name);   // 刷新后停留在当前页
+  try { localStorage.setItem("rocom_tab", name); } catch (_) {}
+  return true;
+}
+
 $("tabs").addEventListener("click", (e) => {
   const btn = e.target.closest("button"); if (!btn) return;
-  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b === btn));
-  document.querySelectorAll("main section").forEach(s => s.hidden = s.id !== "tab-" + btn.dataset.tab);
-  if (btn.dataset.tab === "logs") refreshLogs().catch(err => toast(err.message, 4000));
-  if (btn.dataset.tab === "history") refreshHistory().catch(err => toast(err.message, 4000));
+  activateTab(btn.dataset.tab);
 });
 $("logout").onclick = async () => { await fetch("/api/logout", { method: "POST" }); location.href = "/login"; };
 $("run-all").onclick = async () => {
@@ -486,6 +495,11 @@ $("log-level").onchange = () => refreshLogs().catch(e => toast(e.message, 4000))
 $("his-refresh").onclick = () => refreshHistory().catch(e => toast(e.message, 4000));
 $("his-days").onchange = () => refreshHistory().catch(e => toast(e.message, 4000));
 $("his-shop").onchange = (e) => { hisShop = e.target.value; refreshHistory().catch(err => toast(err.message, 4000)); };
+
+// 恢复上次所在标签页：优先 URL hash，其次 localStorage，默认「状态」
+let initialTab = decodeURIComponent(location.hash.slice(1)) || "";
+try { initialTab = initialTab || localStorage.getItem("rocom_tab") || ""; } catch (_) {}
+if (!activateTab(initialTab)) activateTab("status");
 
 refresh().catch(e => console.error(e));
 setInterval(() => {
