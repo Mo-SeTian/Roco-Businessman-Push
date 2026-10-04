@@ -100,6 +100,9 @@ class HistoryStore:
         except Exception:  # noqa: BLE001 历史记录失败绝不影响推送主流程
             log.warning("历史记录写入失败（商店 %s）", shop_key, exc_info=True)
 
+    def set_days(self, days: int) -> None:
+        self.days = max(1, int(days))
+
     def query(self, days: int) -> dict[str, Any]:
         """返回最近 days 天的数据：{shop: {day: {slot: entry}}}。"""
         cutoff = (date.today() - timedelta(days=max(1, days) - 1)).isoformat()

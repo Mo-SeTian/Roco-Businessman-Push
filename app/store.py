@@ -92,6 +92,8 @@ class AppConfigStore:
         for key in ("wait_ms", "http_timeout", "max_retries", "retry_delay"):
             data.setdefault(key, getattr(env, key))
         data.setdefault("title_prefix", env.title_prefix)
+        data.setdefault("log_retention_days", env.log_retention_days)
+        data.setdefault("history_days", env.history_days)
         if not data.get("channels"):
             data["channels"] = self._env_channels()
         if not data.get("tasks") and data["channels"]:
@@ -116,6 +118,8 @@ class AppConfigStore:
             "max_retries": env.max_retries,
             "retry_delay": env.retry_delay,
             "title_prefix": env.title_prefix,
+            "log_retention_days": env.log_retention_days,
+            "history_days": env.history_days,
             "channels": channels,
             "tasks": [],
             "console_auth": _default_console_auth(env),

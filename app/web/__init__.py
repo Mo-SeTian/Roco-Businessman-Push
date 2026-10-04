@@ -27,8 +27,9 @@ PACKAGE_DIR = Path(__file__).resolve().parent
 
 def create_app(store: AppConfigStore | None = None, scheduler: SchedulerService | None = None) -> FastAPI:
     app_store = store or AppConfigStore()
+    app_cfg = app_store.load()
     state_store = StateStore(app_store.env.state_path)
-    history_store = HistoryStore(app_store.env.history_path, app_store.env.history_days)
+    history_store = HistoryStore(app_store.env.history_path, app_cfg.history_days)
     app_scheduler = scheduler or SchedulerService(app_store, state_store, history_store)
 
     @asynccontextmanager
@@ -136,6 +137,12 @@ def create_app(store: AppConfigStore | None = None, scheduler: SchedulerService 
         except OSError as exc:
             raise HTTPException(status_code=500, detail=f"保存失败：{exc}") from exc
         app_scheduler.wake()
+        # 保留天数即时生效：文件日志 handler 与历史存储原地更新
+        from .. import logs as app_logs
+
+        app_logs.set_file_retention(cfg.log_retention_days)
+        if app_scheduler.history is not None:
+            app_scheduler.history.set_days(cfg.history_days)
         return JSONResponse({"ok": True, "config": cfg.public_dict()})
 
     # ---- 操作 ----

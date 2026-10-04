@@ -53,6 +53,8 @@ def setup_logging(level: str = "INFO", log_dir: str = "logs", retention_days: in
                               datefmt="%Y-%m-%d %H:%M:%S")
         )
         root.addHandler(file_handler)
+        from . import logs as app_logs
+        app_logs.file_handler = file_handler
     except OSError as exc:
         logging.getLogger("main").warning("文件日志目录不可用（%s），仅保留控制台与内存日志", exc)
 
@@ -102,15 +104,16 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     env = GlobalEnv.from_env()
-    setup_logging("INFO", env.log_dir, env.log_retention_days)
+    store = AppConfigStore(env)
+    cfg = store.load()
+    setup_logging("INFO", env.log_dir, cfg.log_retention_days)
 
     if args.demo:
         run_demo(env)
         return 0
 
-    store = AppConfigStore(env)
     state_store = StateStore(env.state_path)
-    history_store = HistoryStore(env.history_path, env.history_days)
+    history_store = HistoryStore(env.history_path, cfg.history_days)
 
     if args.show_config:
         show_config(store)

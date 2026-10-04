@@ -148,9 +148,11 @@ class AppConfig:
     max_retries: int = 3
     retry_delay: int = 20
     title_prefix: str = "洛克王国远行商人"
+    log_retention_days: int = 7    # 文件日志保留天数
+    history_days: int = 30         # 调用历史保留天数
     channels: list[ChannelInstance] = field(default_factory=list)
     tasks: list[TaskConfig] = field(default_factory=list)
-    console_auth: dict = field(default_factory=dict)  # {username, password_sha256}，空 = 免登录
+    console_auth: dict = field(default_factory=dict)  # {username, password_sha256}
 
     def to_dict(self) -> dict:
         return {
@@ -161,6 +163,8 @@ class AppConfig:
             "max_retries": self.max_retries,
             "retry_delay": self.retry_delay,
             "title_prefix": self.title_prefix,
+            "log_retention_days": self.log_retention_days,
+            "history_days": self.history_days,
             "channels": [c.to_dict() for c in self.channels],
             "tasks": [t.to_dict() for t in self.tasks],
             "console_auth": dict(self.console_auth),
@@ -200,6 +204,8 @@ class AppConfig:
             max_retries=_int(data.get("max_retries"), 3),
             retry_delay=_int(data.get("retry_delay"), 20),
             title_prefix=str(data.get("title_prefix") or "").strip() or "洛克王国远行商人",
+            log_retention_days=_int(data.get("log_retention_days"), 7),
+            history_days=_int(data.get("history_days"), 30),
             channels=channels,
             tasks=tasks,
             console_auth=dict(data.get("console_auth") or {}),

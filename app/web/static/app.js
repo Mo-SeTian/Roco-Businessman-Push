@@ -265,6 +265,8 @@ const SETTING_FIELDS = [
   ["http_timeout", "HTTP 超时（秒）", "number"],
   ["max_retries", "202/网络错误重试次数", "number"],
   ["retry_delay", "重试间隔（秒）", "number"],
+  ["log_retention_days", "文件日志保留天数（/logs 按天滚动，保存即生效）", "number"],
+  ["history_days", "调用历史保留天数（过期自动清理）", "number"],
 ];
 
 function renderSettings() {
@@ -274,6 +276,7 @@ function renderSettings() {
     rocom_api_key: "", shop_ids_text: (cfg.shop_ids || []).join(","),
     title_prefix: cfg.title_prefix, wait_ms: cfg.wait_ms, http_timeout: cfg.http_timeout,
     max_retries: cfg.max_retries, retry_delay: cfg.retry_delay,
+    log_retention_days: cfg.log_retention_days, history_days: cfg.history_days,
   };
   form.innerHTML = SETTING_FIELDS.map(([key, label, type]) => {
     const ph = key === "rocom_api_key" && cfg.has_rocom_api_key ? "已配置（留空保持不变）" : "";
@@ -319,6 +322,8 @@ async function saveSettings() {
     http_timeout: +v("http_timeout") || 30,
     max_retries: +v("max_retries") || 3,
     retry_delay: +v("retry_delay") || 20,
+    log_retention_days: +v("log_retention_days") || 7,
+    history_days: +v("history_days") || 30,
   };
   try {
     await api("/api/config", { method: "POST", body });

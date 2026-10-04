@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from collections import deque
 from datetime import datetime
+from logging.handlers import TimedRotatingFileHandler
 from threading import Lock
 
 _LEVELS = {"DEBUG": 10, "INFO": 20, "WARNING": 30, "ERROR": 40, "CRITICAL": 50}
@@ -39,3 +40,10 @@ class RingBufferHandler(logging.Handler):
 
 # 模块级单例：setup_logging() 挂到 root logger，Web 路由读取同一实例
 ring = RingBufferHandler()
+# 文件日志 handler 引用（setup_logging 赋值），供 WebUI 修改保留天数后即时生效
+file_handler: TimedRotatingFileHandler | None = None
+
+
+def set_file_retention(days: int) -> None:
+    if file_handler is not None:
+        file_handler.backupCount = max(1, int(days))
