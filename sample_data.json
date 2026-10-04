@@ -1,0 +1,68 @@
+{
+  "code": 0,
+  "data": {
+    "goods": [
+      {
+        "goods_id": 100117,
+        "buy_num": 0,
+        "limit_buy_num": 200,
+        "price": {
+          "origin": {"amount": 3000, "currency_type": 2, "currency_id": 1},
+          "real": {"amount": 3000, "currency_type": 2, "currency_id": 1}
+        },
+        "next_refresh_time": 0,
+        "disable_time": 1791129600,
+        "sub_goods": []
+      },
+      {
+        "goods_id": 80002,
+        "buy_num": 0,
+        "limit_buy_num": 20,
+        "price": {
+          "origin": {"amount": 50, "currency_type": 2, "currency_id": 1},
+          "real": {"amount": 50, "currency_type": 2, "currency_id": 1}
+        },
+        "next_refresh_time": 0,
+        "disable_time": 1791129600,
+        "sub_goods": []
+      },
+      {
+        "goods_id": 67002,
+        "buy_num": 0,
+        "limit_buy_num": 100,
+        "price": {
+          "origin": {"amount": 1000, "currency_type": 2, "currency_id": 1},
+          "real": {"amount": 1000, "currency_type": 2, "currency_id": 1}
+        },
+        "next_refresh_time": 1791115200,
+        "disable_time": 0,
+        "sub_goods": []
+      }
+    ],
+    "shop": {
+      "disable_time": 0,
+      "goods_count": 3,
+      "max_refresh_count": 4,
+      "random_shop_shown_indexes": [],
+      "refresh_count": 3,
+      "shop_id": 3009,
+      "version": 1791101729199915
+    },
+    "meta": {
+      "cache_expires_at": "2026-10-04T08:30:41.80169216Z",
+      "cached_age_seconds": 126.034,
+      "duration_ms": 1376,
+      "queried_at": "2026-10-04T08:25:41.80169216Z",
+      "ret_code": 0,
+      "source": "cache",
+      "status": "ok",
+      "task_id": "tsk_dlvwsg0kqys4_724k"
+    }
+  },
+  "message": "ok",
+  "goods_mapping": [
+    {"goods_id": 100117, "goods_name": "美妙球", "item_id": 100262, "item_num": 1},
+    {"goods_id": 80002, "goods_name": "可可果球", "item_id": 100287, "item_num": 1},
+    {"goods_id": 67002, "goods_name": "黄石榴石", "item_id": 100675, "item_num": 1}
+  ]
+}

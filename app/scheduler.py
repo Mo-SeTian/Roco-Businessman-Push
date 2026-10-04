@@ -1,0 +1,215 @@
+"""多任务调度器：任务自带触发时间与渠道组合。
+
+- 触发时刻 = 所有启用任务时间的并集；到点只拉一次接口，由命中的任务各自决定推给谁；
+- 指纹按 任务+商店 记录，任务可独立开关"仅变化时推送"；
+- 配置保存后 wake() 立即重算下一次执行。
+"""
+
+from __future__ import annotations
+
+import logging
+import threading
+import time
+from datetime import datetime, timedelta
+from typing import Any
+
+from .channels import send_instance
+from .format import build_message
+from .models import AppConfig, TaskConfig
+from .rocom import MerchantClient
+from .state import StateStore, fingerprint
+
+log = logging.getLogger("scheduler")
+
+
+class SchedulerService:
+    def __init__(self, store, state_store: StateStore):
+        self.store = store  # AppConfigStore
+        self.state_store = state_store
+        self.state: dict[str, Any] = {
+            "running": False,
+            "in_progress": False,
+            "next_run_at": None,
+            "last_fire_at": None,
+            "last_message": "尚未执行",
+            "last_results": [],
+        }
+        self._wake = threading.Event()
+        self._run_lock = threading.Lock()
+        self._stop_flag = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    # ---- 生命周期 ----
+
+    def start(self) -> None:
+        if self._thread and self._thread.is_alive():
+            return
+        self._stop_flag.clear()
+        self._thread = threading.Thread(target=self._loop, name="scheduler", daemon=True)
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._stop_flag.set()
+        self._wake.set()
+
+    def wake(self) -> None:
+        """配置变更后立即打断睡眠，重算计划。"""
+        self._wake.set()
+
+    # ---- 调度循环 ----
+
+    def _loop(self) -> None:
+        self.state["running"] = True
+        try:
+            if self.store.env.run_on_start:
+                self._run_locked("启动执行", force=False)
+            while not self._stop_flag.is_set():
+                cfg = self.store.load()
+                now = datetime.now()
+                next_run = self.next_run_time(cfg, now)
+                self.state["next_run_at"] = next_run.isoformat(sep=" ", timespec="minutes") if next_run else None
+                if next_run is None:
+                    self.state["last_message"] = "没有启用的任务，等待配置…"
+                    self._wake.wait(timeout=60)
+                    self._wake.clear()
+                    continue
+                wait_s = max(0.0, (next_run - datetime.now()).total_seconds())
+                log.info("下一次执行：%s（%.0f 分钟后）", next_run.strftime("%m-%d %H:%M"), wait_s / 60)
+                woken = self._wake.wait(timeout=wait_s)
+                self._wake.clear()
+                if woken and not self._stop_flag.is_set():
+                    continue  # 配置变了，重算
+                if self._stop_flag.is_set():
+                    break
+                self._run_locked("定时执行", force=False, due_time=next_run.strftime("%H:%M"))
+        finally:
+            self.state["running"] = False
+
+    @staticmethod
+    def next_run_time(cfg: AppConfig, now: datetime) -> datetime | None:
+        """所有启用任务时间的并集中，晚于 now 的最近时刻。"""
+        candidates: set[datetime] = set()
+        today = now.date()
+        tomorrow = today + timedelta(days=1)
+        for task in cfg.tasks:
+            if not task.enabled:
+                continue
+            for text in task.times:
+                hour, minute = int(text[:2]), int(text[3:5])
+                for day in (today, tomorrow):
+                    candidate = datetime.combine(day, datetime.min.time()).replace(hour=hour, minute=minute)
+                    if candidate > now:
+                        candidates.add(candidate)
+        return min(candidates) if candidates else None
+
+    def _wake_wait(self, timeout: float) -> bool:
+        return self._wake.wait(timeout=timeout)
+
+    # ---- 执行 ----
+
+    def run_task_now(self, task_id: str) -> str:
+        """手动执行指定任务（无视时间表，强制推送）。"""
+        return self._run_locked("手动执行", force=True, task_id=task_id)
+
+    def run_all_now(self) -> str:
+        return self._run_locked("手动执行", force=True)
+
+    def _run_locked(self, reason: str, *, force: bool, task_id: str | None = None,
+                    due_time: str | None = None) -> str:
+        with self._run_lock:
+            if self.state["in_progress"]:
+                return "已有任务正在执行，请稍候"
+            self.state["in_progress"] = True
+            self.state["last_message"] = f"{reason}中…"
+            try:
+                cfg = self.store.load()
+                if task_id:
+                    task = next((t for t in cfg.tasks if t.id == task_id), None)
+                    if task is None:
+                        return "任务不存在"
+                    tasks = [task]
+                elif due_time:
+                    tasks = [t for t in cfg.tasks if t.enabled and t.due_at(datetime.now())]
+                    if not tasks:
+                        self.state["last_message"] = f"{reason}：无命中任务"
+                        return self.state["last_message"]
+                else:
+                    tasks = [t for t in cfg.tasks if t.enabled]
+                    if not tasks:
+                        self.state["last_message"] = "没有启用的任务"
+                        return self.state["last_message"]
+                self._fire(cfg, tasks, force=force)
+                return self.state["last_message"]
+            except Exception as exc:  # noqa: BLE001
+                log.exception("执行异常")
+                self.state["last_message"] = f"{reason}异常：{exc}"
+                return self.state["last_message"]
+            finally:
+                self.state["in_progress"] = False
+                self.state["last_fire_at"] = datetime.now().isoformat(sep=" ", timespec="seconds")
+
+    def _fire(self, cfg: AppConfig, tasks: list[TaskConfig], *, force: bool) -> None:
+        shop_keys = cfg.shop_ids or [None]
+        client = MerchantClient(
+            cfg.rocom_api_key,
+            api_base=self.store.env.api_base,
+            wait_ms=cfg.wait_ms,
+            http_timeout=cfg.http_timeout,
+            max_retries=cfg.max_retries,
+            retry_delay=cfg.retry_delay,
+        )
+
+        payloads: dict[str, dict] = {}
+        errors: dict[str, str] = {}
+        for shop in shop_keys:
+            key = shop or "default"
+            try:
+                payloads[key] = client.fetch_merchant(shop)
+            except Exception as exc:  # noqa: BLE001
+                log.error("[%s] 拉取失败：%s", key, exc)
+                errors[key] = str(exc)[:200]
+
+        report: list[dict] = []
+        pushed_any = False
+        for task in tasks:
+            channels = cfg.enabled_channels_of(task)
+            for shop in shop_keys:
+                key = shop or "default"
+                entry = {"task": task.name, "shop": key, "channels": [], "skipped": False}
+                if key in errors:
+                    entry["channels"].append({"channel": "(接口)", "ok": False, "detail": errors[key]})
+                    report.append(entry)
+                    continue
+                if not channels:
+                    entry["channels"].append({"channel": "(渠道)", "ok": False, "detail": "任务未配置可用渠道"})
+                    report.append(entry)
+                    continue
+
+                msg = build_message(payloads[key], cfg.title_prefix)
+                fp = fingerprint(msg["fingerprint_src"])
+                state_key = f"{task.id}:{key}"
+                if not force and task.only_on_change and self.state_store.get_fingerprint(state_key) == fp:
+                    entry["skipped"] = True
+                    report.append(entry)
+                    log.info("[任务:%s | %s] 数据无变化，跳过", task.name, key)
+                    continue
+
+                for inst in channels:
+                    ok, detail = send_instance(inst, msg["title"], msg["markdown"], msg["text"])
+                    entry["channels"].append({"channel": inst.name, "ok": ok, "detail": detail})
+                    if ok:
+                        pushed_any = True
+                if any(c["ok"] for c in entry["channels"]):
+                    self.state_store.set_pushed(state_key, fp)
+                report.append(entry)
+
+        self.state["last_results"] = report[-50:]
+        self.state["last_fire_at"] = datetime.now().isoformat(sep=" ", timespec="seconds")
+        ok_count = sum(1 for e in report for c in e["channels"] if c["ok"])
+        total = sum(len(e["channels"]) for e in report)
+        self.state["last_message"] = (
+            f"完成：{ok_count}/{total} 项推送成功" if total else "无推送项"
+        )
+        if not pushed_any and total and ok_count == 0:
+            self.state["last_message"] += "（注意：全部失败）"
+        log.info(self.state["last_message"])

@@ -1,0 +1,16 @@
+services:
+  rocom-merchant-pusher:
+    build: .
+    image: rocom-merchant-pusher:latest
+    container_name: rocom-merchant-pusher
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - TZ=Asia/Shanghai
+    ports:
+      - "${WEB_PORT:-19892}:19892"
+    volumes:
+      - ./data:/data
+    # 默认启动 Web 控制台 + 后台调度；
+    # 只跑调度不启 Web：command: ["python","-m","app.main","--scheduler"]
+    # 配合外部 cron：command: ["python","-m","app.main","--once"]

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>洛克王国远行商人推送</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1>🎩 洛克王国远行商人推送</h1>
+  <button id="logout" class="ghost">退出</button>
+</header>
+<div id="issue" class="issue" hidden></div>
+<nav id="tabs">
+  <button data-tab="status" class="on">状态</button>
+  <button data-tab="tasks">推送任务</button>
+  <button data-tab="channels">推送渠道</button>
+  <button data-tab="settings">全局设置</button>
+</nav>
+<main>
+  <section id="tab-status">
+    <div class="cards" id="status-cards"></div>
+    <div class="row-head"><h2>上次执行结果</h2><button id="run-all">▶ 手动执行全部任务</button></div>
+    <div id="last-results"></div>
+  </section>
+
+  <section id="tab-tasks" hidden>
+    <div class="row-head"><h2>推送任务</h2><button id="task-add">＋ 新建任务</button></div>
+    <p class="hint">远行商人每天 <b>8:00 / 12:00 / 16:00 / 20:00</b> 刷新，默认任务在每次刷新后 5 分钟推送。每个任务可独立选择时间与渠道组合。</p>
+    <div id="task-list"></div>
+    <div id="task-editor" class="editor" hidden></div>
+  </section>
+
+  <section id="tab-channels" hidden>
+    <div class="row-head"><h2>推送渠道</h2><button id="ch-add">＋ 新建渠道</button></div>
+    <p class="hint">同一种渠道可以创建多个实例（例如两台设备的 Bark），在任务里自由勾选组合。</p>
+    <div id="channel-list"></div>
+    <div id="channel-editor" class="editor" hidden></div>
+  </section>
+
+  <section id="tab-settings" hidden>
+    <h2>全局设置</h2>
+    <div class="form" id="settings-form"></div>
+    <button id="settings-save" class="primary">保存设置</button>
+  </section>
+</main>
+<div id="toast" hidden></div>
+<script src="/static/app.js"></script>
+</body>
+</html>
