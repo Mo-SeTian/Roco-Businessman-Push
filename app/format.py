@@ -238,7 +238,8 @@ DEFAULT_GOODS_LINE_TEMPLATE = (
     "时段：{period}\n"
     "价格：{price}\n"
     "数量：{limit}\n"
-    "合计：{total}"
+    "合计：{total}\n"
+    "{nl}"
 )
 # 上一版默认模板（存量 config.json 里与其相同的值视为未自定义，自动升级到新默认）
 LEGACY_TITLE_TEMPLATE = "{prefix}｜商店{shop_id}（第{refresh_count}/{max_refresh_count}次）"
@@ -248,6 +249,14 @@ LEGACY_BODY_TEMPLATE = (
     "\n{goods_list}\n\n共 {goods_count} 件商品"
 )
 LEGACY_GOODS_LINE_TEMPLATE = "- **{name}**｜{price}｜限购 {limit}｜{window}"
+# 第二版默认商品模板（编号分条，但条目之间没有空行）→ 同样视为未自定义
+LEGACY_GOODS_LINE_TEMPLATE_V2 = (
+    "{index}. {name}\n"
+    "时段：{period}\n"
+    "价格：{price}\n"
+    "数量：{limit}\n"
+    "合计：{total}"
+)
 
 TITLE_VARS = "{prefix} {shop_id} {refresh_count} {max_refresh_count} {date} {goods_count}"
 BODY_VARS = "{queried} {source} {date} {refresh_count} {max_refresh_count} {goods_count} {goods_names} {countdown} {goods_list} {shop_id}"
@@ -382,7 +391,7 @@ def build_markdown(norm: dict, tpl: Any) -> str:
     now = datetime.now()
     queried_dt = norm.get("_queried_dt")
     body_tpl = tpl.body_template.strip() or DEFAULT_BODY_TEMPLATE
-    return _fill(body_tpl, {
+    rendered = _fill(body_tpl, {
         "prefix": tpl.title_prefix,
         "shop_id": norm.get("shop_id", ""),
         "queried": norm.get("queried", ""),
@@ -395,6 +404,7 @@ def build_markdown(norm: dict, tpl: Any) -> str:
         "countdown": _countdown(queried_dt or now.astimezone()),
         "goods_list": _goods_list(norm, tpl, queried_dt),
     })
+    return re.sub(r"\n{3,}", "\n\n", rendered).rstrip()
 
 
 _MD_MARKS = (

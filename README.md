@@ -101,7 +101,7 @@ Server 酱/PushPlus/企微/WxPusher 收 Markdown，Bark 收等价纯文本。接
 | --- | --- | --- |
 | 标题 | `{prefix}` `{shop_id}` `{refresh_count}` `{max_refresh_count}` `{date}` `{goods_count}` | `洛克王国远行商人（第{refresh_count}/{max_refresh_count}次）` |
 | 正文（Markdown） | `{goods_count}` `{goods_names}` `{countdown}` `{refresh_count}` `{max_refresh_count}` `{queried}` `{source}` `{date}` `{goods_list}` `{shop_id}` | 商品数与名称汇总 + `轮次：x/y · 剩余：{countdown}` + `{goods_list}` |
-| 商品条目（每件商品可多行） | `{index}` `{name}` `{period}` `{price}` `{price_num}` `{limit}` `{total}` `{window}` `{item_num}` `{goods_id}` `{nl}` | 序号 + 名称 + `时段：{period}` + 价格/数量/合计（{total}=单价×数量，自动换算“X万洛克贝”） |
+| 商品条目（每件商品可多行） | `{index}` `{name}` `{period}` `{price}` `{price_num}` `{limit}` `{total}` `{window}` `{item_num}` `{goods_id}` `{nl}` | 序号 + 名称 + `时段：{period}` + 价格/数量/合计（{total}=单价×数量，自动换算“X万洛克贝”），末尾 `{nl}` 使每件商品之间空一行 |
 
 说明：`{countdown}` 为距下一档位边界的倒计时（8/12/16/20/24 点，8 点前显示“未开市”）；`{period}` 为供应时段（结束为午夜 00:00 时按 23:59 显示），**全天供应商品显示为「全天」**；`{nl}` 或字面 `\n` 是换行标识，渲染时转为真实换行；字段为空时自动收起悬空的行和 `｜` 分隔符；Bark 等纯文本渠道收到的是模板正文去 Markdown 的版本；子商品暂不支持自定义模板。
 

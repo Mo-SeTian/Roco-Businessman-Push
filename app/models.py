@@ -12,14 +12,15 @@ from .channels.manifest import CHANNEL_TYPES, channel_fields, required_fields
 from .format import (
     LEGACY_BODY_TEMPLATE,
     LEGACY_GOODS_LINE_TEMPLATE,
+    LEGACY_GOODS_LINE_TEMPLATE_V2,
     LEGACY_TITLE_TEMPLATE,
 )
 
 
-def _migrate_legacy_template(value: str, legacy: str) -> str:
-    """存量配置里与上一版默认完全相同的模板视为未自定义，自动升级到新默认。"""
+def _migrate_legacy_template(value: str, *legacy_values: str) -> str:
+    """存量配置里与历史默认完全相同的模板视为未自定义，自动升级到新默认。"""
     value = value or ""
-    return "" if value.strip() == legacy else value
+    return "" if value.strip() in {v.strip() for v in legacy_values} else value
 
 _TIME_RE = re.compile(r"^(\d{1,2}):(\d{2})$")
 
@@ -229,7 +230,8 @@ class AppConfig:
             title_template=_migrate_legacy_template(str(data.get("title_template") or ""), LEGACY_TITLE_TEMPLATE),
             body_template=_migrate_legacy_template(str(data.get("body_template") or ""), LEGACY_BODY_TEMPLATE),
             goods_line_template=_migrate_legacy_template(
-                str(data.get("goods_line_template") or ""), LEGACY_GOODS_LINE_TEMPLATE),
+                str(data.get("goods_line_template") or ""),
+                LEGACY_GOODS_LINE_TEMPLATE, LEGACY_GOODS_LINE_TEMPLATE_V2),
             channels=channels,
             tasks=tasks,
             console_auth=dict(data.get("console_auth") or {}),
