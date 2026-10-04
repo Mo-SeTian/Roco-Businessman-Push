@@ -17,6 +17,7 @@
   <button data-tab="tasks">推送任务</button>
   <button data-tab="channels">推送渠道</button>
   <button data-tab="settings">全局设置</button>
+  <button data-tab="history">历史记录</button>
   <button data-tab="logs">日志</button>
 </nav>
 <main>
@@ -49,6 +50,23 @@
     <p class="hint">修改后其他已登录的会话将被踢出，需用新凭据重新登录。</p>
     <div class="form" id="account-form"></div>
     <button id="account-save" class="primary">更新账号密码</button>
+  </section>
+
+  <section id="tab-history" hidden>
+    <div class="row-head">
+      <h2>历史记录</h2>
+      <div class="actions" style="margin:0">
+        <select id="his-days" class="sel">
+          <option value="7">最近 7 天</option>
+          <option value="14" selected>最近 14 天</option>
+          <option value="30">最近 30 天</option>
+        </select>
+        <select id="his-shop" class="sel" hidden></select>
+        <button id="his-refresh">刷新</button>
+      </div>
+    </div>
+    <p class="hint">每次成功调用接口都会按「商店 → 日期 → 档位」记录当次商品；错过或失败的档位显示为空。历史保留 <b>HISTORY_DAYS</b>（默认 30 天），存于 /data/history.json。</p>
+    <div id="history-list"></div>
   </section>
 
   <section id="tab-logs" hidden>

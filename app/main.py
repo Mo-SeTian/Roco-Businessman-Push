@@ -18,6 +18,7 @@ from pathlib import Path
 
 from . import format as fmt
 from .config import GlobalEnv
+from .history import HistoryStore
 from .scheduler import SchedulerService
 from .state import StateStore
 from .store import AppConfigStore
@@ -109,6 +110,7 @@ def main(argv: list[str] | None = None) -> int:
 
     store = AppConfigStore(env)
     state_store = StateStore(env.state_path)
+    history_store = HistoryStore(env.history_path, env.history_days)
 
     if args.show_config:
         show_config(store)
@@ -119,7 +121,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.scheduler:
-        scheduler = SchedulerService(store, state_store)
+        scheduler = SchedulerService(store, state_store, history_store)
         scheduler.start()
         try:
             while True:
@@ -132,7 +134,7 @@ def main(argv: list[str] | None = None) -> int:
     import uvicorn
     from .web import create_app
 
-    app = create_app(store, SchedulerService(store, state_store))
+    app = create_app(store, SchedulerService(store, state_store, history_store))
     if not store.load().rocom_api_key:
         print("提示：尚未配置 API Key，请打开 Web 控制台在「全局设置」中填写。", flush=True)
     uvicorn.run(app, host=env.web_host, port=env.web_port, log_level="info")

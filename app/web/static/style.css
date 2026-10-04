@@ -48,3 +48,6 @@ th{background:#faf9f5;font-weight:600;color:#666}
 #log-list table{margin-top:0}
 .mono{font-family:ui-monospace,Consolas,"Courier New",monospace;font-size:12px;word-break:break-all}
 .lv-debug{color:#999}.lv-info{color:#1677ff}.lv-warning{color:#d48806}.lv-error{color:var(--danger)}.lv-critical{color:var(--danger);font-weight:700}
+.dim{color:#bbb}
+.slot-cell{white-space:nowrap;font-weight:600}
+.goods-line{padding:1px 0}

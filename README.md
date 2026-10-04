@@ -88,6 +88,7 @@ Server 酱/PushPlus/企微/WxPusher 收 Markdown，Bark 收等价纯文本。接
 | `/data/config.json` | 全部 WebUI 配置：API Key、渠道实例（含密钥）、推送任务、控制台登录凭据 |
 | `/data/state.json` | 各 任务+商店 的数据指纹（去重） |
 | `/data/scheduler_state.json` | 上次执行结果与时间（重启后状态页仍可见） |
+| `/data/history.json` | 调用历史：每次成功拉取的商品信息按 商店/日期/档位 保存，默认保留 30 天（`HISTORY_DAYS` 可调），WebUI「历史记录」页展示 |
 | `/logs/rocom-push.log` | 文件日志（按天滚动，默认保留 7 天，`LOG_RETENTION_DAYS` 可调，到期自动清理） |
 
 用 `docker run` 时记得手动挂载：`-v /your/path/data:/data`。控制台登录会话存于内存，重启后需重新登录（有意为之）。

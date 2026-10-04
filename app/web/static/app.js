@@ -349,6 +349,45 @@ function buildPayload(item, mode, delId) {
   };
 }
 
+/* ---------- 历史记录 ---------- */
+
+let hisShop = "";
+
+async function refreshHistory() {
+  const data = await api(`/api/history?days=${$("his-days").value}`);
+  const shopIds = Object.keys(data.history || {});
+  const sel = $("his-shop");
+  if (shopIds.length > 1) {
+    sel.hidden = false;
+    if (!shopIds.includes(hisShop)) hisShop = shopIds.includes("default") ? "default" : shopIds[0];
+    sel.innerHTML = shopIds.map(id => `<option value="${esc(id)}" ${id === hisShop ? "selected" : ""}>商店 ${esc(id)}</option>`).join("");
+  } else {
+    sel.hidden = true;
+    hisShop = shopIds[0] || "";
+  }
+  const byDay = (data.history || {})[hisShop] || {};
+  const dates = Object.keys(byDay).sort().reverse();
+  const slots = data.slots || [];
+
+  $("history-list").innerHTML = dates.length ? dates.map(day => {
+    const rows = slots.map(slot => {
+      const e = (byDay[day] || {})[slot];
+      if (!e) return `<tr><td class="slot-cell">${slot}</td><td class="dim">— 无数据（未调用）</td></tr>`;
+      const goods = (e.goods || []).map(g => {
+        const bits = [esc(g.name)];
+        if (g.price) bits.push(esc(g.price));
+        if (g.limit != null) bits.push(`限购${esc(g.limit)}`);
+        if (g.window) bits.push(esc(g.window));
+        return `<div class="goods-line">${bits.join("｜")}</div>`;
+      }).join("") || `<span class="dim">无商品</span>`;
+      return `<tr><td class="slot-cell">${slot}<div class="dim" style="font-weight:400">${esc(e.queried || "")}${e.source ? " · " + esc(e.source) : ""}</div></td>
+        <td>${goods}</td><td class="slot-cell">${e.count ?? 0} 件${e.refresh ? `<div class="dim" style="font-weight:400">刷新 ${esc(e.refresh)}</div>` : ""}</td></tr>`;
+    }).join("");
+    return `<h2 style="margin-top:16px">${esc(day)}</h2>
+      <table><tr><th>档位</th><th>商品明细</th><th>数量</th></tr>${rows}</table>`;
+  }).join("") : `<div class="empty">还没有历史数据——每次成功调用接口后会自动记录（每档一条）</div>`;
+}
+
 /* ---------- 初始化 ---------- */
 
 $("tabs").addEventListener("click", (e) => {
@@ -356,6 +395,7 @@ $("tabs").addEventListener("click", (e) => {
   document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b === btn));
   document.querySelectorAll("main section").forEach(s => s.hidden = s.id !== "tab-" + btn.dataset.tab);
   if (btn.dataset.tab === "logs") refreshLogs().catch(err => toast(err.message, 4000));
+  if (btn.dataset.tab === "history") refreshHistory().catch(err => toast(err.message, 4000));
 });
 $("logout").onclick = async () => { await fetch("/api/logout", { method: "POST" }); location.href = "/login"; };
 $("run-all").onclick = async () => {
@@ -368,6 +408,9 @@ $("settings-save").onclick = saveSettings;
 $("account-save").onclick = saveAccount;
 $("log-refresh").onclick = () => refreshLogs().catch(e => toast(e.message, 4000));
 $("log-level").onchange = () => refreshLogs().catch(e => toast(e.message, 4000));
+$("his-refresh").onclick = () => refreshHistory().catch(e => toast(e.message, 4000));
+$("his-days").onchange = () => refreshHistory().catch(e => toast(e.message, 4000));
+$("his-shop").onchange = (e) => { hisShop = e.target.value; refreshHistory().catch(err => toast(err.message, 4000)); };
 
 refresh().catch(e => console.error(e));
 setInterval(() => {

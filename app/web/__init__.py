@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from . import auth as web_auth
 from ..channels import send_instance
 from ..channels.manifest import CHANNEL_TYPES
+from ..history import HistoryStore
 from ..models import ChannelInstance
 from ..scheduler import SchedulerService
 from ..state import StateStore
@@ -27,7 +28,8 @@ PACKAGE_DIR = Path(__file__).resolve().parent
 def create_app(store: AppConfigStore | None = None, scheduler: SchedulerService | None = None) -> FastAPI:
     app_store = store or AppConfigStore()
     state_store = StateStore(app_store.env.state_path)
-    app_scheduler = scheduler or SchedulerService(app_store, state_store)
+    history_store = HistoryStore(app_store.env.history_path, app_store.env.history_days)
+    app_scheduler = scheduler or SchedulerService(app_store, state_store, history_store)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -169,6 +171,18 @@ def create_app(store: AppConfigStore | None = None, scheduler: SchedulerService 
         ok, detail = send_instance(inst, title, md, f"{inst.name} 渠道测试推送（{now_text}）")
         return JSONResponse({"ok": ok, "message": detail}, status_code=200 if ok else 400)
 
+    async def api_history(request: Request, _=Depends(_api_guard)):
+        try:
+            days = min(int(request.query_params.get("days", "14")), 90)
+        except ValueError:
+            days = 14
+        history = getattr(app_scheduler, "history", None)
+        return {
+            "slots": ["08:00", "12:00", "16:00", "20:00"],
+            "days": days,
+            "history": history.query(days) if history else {},
+        }
+
     async def api_logs(request: Request, _=Depends(_api_guard)):
         from ..logs import ring
 
@@ -201,5 +215,6 @@ def create_app(store: AppConfigStore | None = None, scheduler: SchedulerService 
     app.add_api_route("/api/run-task", api_run_task, methods=["POST"])
     app.add_api_route("/api/run-all", api_run_all, methods=["POST"])
     app.add_api_route("/api/logs", api_logs, methods=["GET"])
+    app.add_api_route("/api/history", api_history, methods=["GET"])
     app.mount("/static", StaticFiles(directory=str(PACKAGE_DIR / "static")), name="static")
     return app

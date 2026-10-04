@@ -27,9 +27,10 @@ log = logging.getLogger("scheduler")
 
 
 class SchedulerService:
-    def __init__(self, store, state_store: StateStore):
+    def __init__(self, store, state_store: StateStore, history_store=None):
         self.store = store  # AppConfigStore
         self.state_store = state_store
+        self.history = history_store  # HistoryStore，可为 None
         self.state: dict[str, Any] = {
             "running": False,
             "in_progress": False,
@@ -194,6 +195,8 @@ class SchedulerService:
             log.info("开始拉取远行商人数据（商店：%s）", key)
             try:
                 payloads[key] = client.fetch_merchant(shop)
+                if self.history is not None:
+                    self.history.add(key, payloads[key])  # 成功拉取即记入历史，失败/未调用自然为空
             except Exception as exc:  # noqa: BLE001
                 log.error("[%s] 拉取失败：%s", key, exc)
                 errors[key] = str(exc)[:200]
