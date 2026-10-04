@@ -23,7 +23,7 @@ import json
 import re
 import time
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 # 协议货币 -> 展示名（currency_id=1 = 洛克贝；未知货币显示 货币{id}）。
@@ -100,6 +100,10 @@ def _norm_good(good: Any, mapping: dict[str, dict], slot_start_ts: int, day_open
         disable_ts = int(good.get("disable_time") or 0)        # 显式下架时间
     except (TypeError, ValueError):
         refresh_ts, disable_ts = 0, 0
+    price_obj = good.get("price") if isinstance(good.get("price"), dict) else {}
+    real_obj = price_obj.get("real") if isinstance(price_obj.get("real"), dict) else {}
+    amount = real_obj.get("amount")
+    amount = int(amount) if isinstance(amount, (int, float)) else None
     # 四象限：(refresh,disable) 组合决定商品类型与可购窗口，见模块 docstring
     if refresh_ts > 0 and disable_ts > 0:
         start_ts, end_ts = refresh_ts, disable_ts          # 未来档商品：上架 ~ 下架
@@ -116,6 +120,7 @@ def _norm_good(good: Any, mapping: dict[str, dict], slot_start_ts: int, day_open
         "goods_id": gid,
         "name": info.get("goods_name") or f"商品{gid}",
         "price": _fmt_price(good),
+        "amount": amount,
         "limit": limit if isinstance(limit, int) else None,
         "item_num": info.get("item_num"),
         # 可购窗口：start 由档位推算；推算不出时由 _window 回退为“现在”
@@ -174,27 +179,75 @@ def normalize(payload: dict) -> dict:
         "source": meta.get("source", ""),
         "goods": goods,
         "_raw": data,
+        "_queried_dt": queried_dt,
         # 指纹只取 goods+shop：meta 里的 queried_at/task_id/cached_age_seconds 每次请求
         # 都会变，参与指纹会让"仅变化时推送"失效（每轮误推）；buy_num 同理剔除
         "_fp_src": {"goods": _strip_volatile(data.get("goods")), "shop": data.get("shop")},
     }
 
 
+def _countdown(now: datetime) -> str:
+    """距下一档位边界的剩余时间（8/12/16/20/24 点整）。8 点前显示未开市。"""
+    day_open = now.replace(hour=SLOT_START_HOURS[0], minute=0, second=0, microsecond=0)
+    if now < day_open:
+        return "未开市"
+    boundaries = [now.replace(hour=h, minute=0, second=0, microsecond=0) for h in SLOT_START_HOURS[1:]]
+    boundaries.append(day_open + timedelta(days=1))  # 当天 24:00（最后一档收市）
+    nxt = min(b for b in boundaries if b > now)
+    minutes = int((nxt - now).total_seconds() // 60)
+    hours, mins = divmod(minutes, 60)
+    return f"{hours}小时{mins}分钟" if hours else f"{mins}分钟"
+
+
+def _period(good: dict) -> str:
+    """时段展示：08:00 - 23:59（结束为午夜 00:00 时按当日收市 23:59 显示）。"""
+    start, end = good.get("start") or "", good.get("end") or ""
+    start_hm = start.split("-", 1)[1] if "-" in start else start
+    end_hm = end.split("-", 1)[1] if "-" in end else end
+    if end_hm == "00:00":
+        end_hm = "23:59"
+    if not end_hm:
+        return "全天供应"
+    return f"{start_hm or '现在'} - {end_hm}"
+
+
+def _wan(amount: int) -> str:
+    """洛克贝金额的万单位缩写。"""
+    if amount >= 10000:
+        text = f"{amount / 10000:.2f}".rstrip("0").rstrip(".")
+        return f"{text}万洛克贝"
+    return f"{amount}洛克贝"
+
+
 # ---- 通知模板 ----
-# 三层模板：标题 / 正文(Markdown) / 商品行。留空 = 使用内置默认。
-# 正文里的 {goods_list} 由商品行模板逐件渲染；子商品沿用内置缩进格式。
+# 三层模板：标题 / 正文(Markdown) / 商品条目（可多行）。留空 = 使用内置默认。
+# 正文里的 {goods_list} 由商品条目模板逐件渲染；子商品沿用内置缩进格式。
 DEFAULT_TITLE_PREFIX = "洛克王国远行商人"
-DEFAULT_TITLE_TEMPLATE = "{prefix}｜商店{shop_id}（第{refresh_count}/{max_refresh_count}次）"
+DEFAULT_TITLE_TEMPLATE = "洛克王国远行商人（第{refresh_count}/{max_refresh_count}次）"
 DEFAULT_BODY_TEMPLATE = (
+    "{goods_count}件商品：{goods_names}\n"
+    "\n轮次：{refresh_count}/{max_refresh_count} · 剩余：{countdown}\n"
+    "\n{goods_list}"
+)
+DEFAULT_GOODS_LINE_TEMPLATE = (
+    "{index}. {name}\n"
+    "时段：{period}\n"
+    "价格：{price}\n"
+    "数量：{limit}\n"
+    "合计：{total}"
+)
+# 上一版默认模板（存量 config.json 里与其相同的值视为未自定义，自动升级到新默认）
+LEGACY_TITLE_TEMPLATE = "{prefix}｜商店{shop_id}（第{refresh_count}/{max_refresh_count}次）"
+LEGACY_BODY_TEMPLATE = (
     "> 查询时间 {queried}｜来源 {source}\n"
     "商店已刷新：**{refresh_count}/{max_refresh_count}** 次\n"
     "\n{goods_list}\n\n共 {goods_count} 件商品"
 )
-DEFAULT_GOODS_LINE_TEMPLATE = "- **{name}**｜{price}｜限购 {limit}｜{window}"
+LEGACY_GOODS_LINE_TEMPLATE = "- **{name}**｜{price}｜限购 {limit}｜{window}"
 
-TITLE_VARS = "{prefix} {shop_id} {refresh_count} {max_refresh_count}"
-BODY_VARS = "{queried} {source} {date} {refresh_count} {max_refresh_count} {goods_count} {goods_list} {shop_id}"
-GOODS_VARS = "{name} {price} {limit} {window} {item_num} {goods_id}"
+TITLE_VARS = "{prefix} {shop_id} {refresh_count} {max_refresh_count} {date} {goods_count}"
+BODY_VARS = "{queried} {source} {date} {refresh_count} {max_refresh_count} {goods_count} {goods_names} {countdown} {goods_list} {shop_id}"
+GOODS_VARS = "{index} {name} {price} {price_num} {limit} {total} {period} {window} {item_num} {goods_id}"
 
 
 def template_defaults() -> dict:
@@ -226,7 +279,7 @@ def _cleanup_line(line: str) -> str:
     return re.sub(r"｜{2,}", "｜", line).rstrip("｜ ").rstrip()
 
 
-def _goods_list(norm: dict, tpl: TemplateSettings) -> str:
+def _goods_list(norm: dict, tpl: TemplateSettings, queried_dt: datetime | None) -> str:
     goods = norm.get("goods") or []
     if not goods:
         return (
@@ -235,17 +288,27 @@ def _goods_list(norm: dict, tpl: TemplateSettings) -> str:
             + "\n```"
         )
     line_tpl = tpl.goods_line_template.strip() or DEFAULT_GOODS_LINE_TEMPLATE
-    lines: list[str] = []
-    for g in goods:
-        line = _cleanup_line(_fill(line_tpl, {
+    now_ref = queried_dt or datetime.now().astimezone()
+    blocks: list[str] = []
+    for index, g in enumerate(goods, start=1):
+        amount = g.get("amount")
+        limit = g.get("limit")
+        total = amount * limit if isinstance(amount, int) and isinstance(limit, int) else None
+        filled = _fill(line_tpl, {
+            "index": index,
             "name": g.get("name") or f"商品{g.get('goods_id')}",
             "price": g.get("price") or "",
-            "limit": g.get("limit") if g.get("limit") is not None else "",
+            "price_num": f"{amount:,}" if isinstance(amount, int) else "",
+            "limit": limit if isinstance(limit, int) else "",
+            "total": f"{total:,}（{_wan(total)}）" if total is not None else "",
+            "period": _period(g),
             "window": _window(g),
             "item_num": g.get("item_num") if g.get("item_num") is not None else "",
             "goods_id": g.get("goods_id") or "",
-        }))
-        lines.append(line)
+        })
+        # 模板字段为空时收起悬空的“标签：”行与“｜”分隔符
+        kept = [ln for ln in filled.splitlines() if ln.strip() and not re.match(r"^[^：]{1,16}：\s*$", ln)]
+        blocks.append(_cleanup_line("\n".join(kept)))
         for s in g.get("sub_goods", []):
             sub_bits = [f"**{s['name']}**"]
             if s.get("price"):
@@ -255,8 +318,8 @@ def _goods_list(norm: dict, tpl: TemplateSettings) -> str:
             sub_window = _window(s)
             if sub_window:
                 sub_bits.append(sub_window)
-            lines.append(f"  - " + "｜".join(sub_bits))
-    return "\n".join(lines)
+            blocks.append(f"  - " + "｜".join(sub_bits))
+    return "\n".join(blocks)
 
 
 def _refresh_pair(norm: dict) -> tuple[str, str]:
@@ -311,6 +374,7 @@ def build_markdown(norm: dict, tpl: Any) -> str:
     tpl = _tpl_of(tpl)
     rc, mr = _refresh_pair(norm)
     now = datetime.now()
+    queried_dt = norm.get("_queried_dt")
     body_tpl = tpl.body_template.strip() or DEFAULT_BODY_TEMPLATE
     return _fill(body_tpl, {
         "prefix": tpl.title_prefix,
@@ -321,7 +385,9 @@ def build_markdown(norm: dict, tpl: Any) -> str:
         "refresh_count": rc,
         "max_refresh_count": mr,
         "goods_count": len(norm.get("goods") or []),
-        "goods_list": _goods_list(norm, tpl),
+        "goods_names": "、".join(g.get("name") or "" for g in norm.get("goods") or []),
+        "countdown": _countdown(queried_dt or now.astimezone()),
+        "goods_list": _goods_list(norm, tpl, queried_dt),
     })
 
 

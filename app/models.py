@@ -9,6 +9,17 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from .channels.manifest import CHANNEL_TYPES, channel_fields, required_fields
+from .format import (
+    LEGACY_BODY_TEMPLATE,
+    LEGACY_GOODS_LINE_TEMPLATE,
+    LEGACY_TITLE_TEMPLATE,
+)
+
+
+def _migrate_legacy_template(value: str, legacy: str) -> str:
+    """存量配置里与上一版默认完全相同的模板视为未自定义，自动升级到新默认。"""
+    value = value or ""
+    return "" if value.strip() == legacy else value
 
 _TIME_RE = re.compile(r"^(\d{1,2}):(\d{2})$")
 
@@ -215,9 +226,10 @@ class AppConfig:
             log_retention_days=_int(data.get("log_retention_days"), 7),
             history_days=_int(data.get("history_days"), 30),
             run_on_start=_bool(data.get("run_on_start"), False),
-            title_template=str(data.get("title_template") or ""),
-            body_template=str(data.get("body_template") or ""),
-            goods_line_template=str(data.get("goods_line_template") or ""),
+            title_template=_migrate_legacy_template(str(data.get("title_template") or ""), LEGACY_TITLE_TEMPLATE),
+            body_template=_migrate_legacy_template(str(data.get("body_template") or ""), LEGACY_BODY_TEMPLATE),
+            goods_line_template=_migrate_legacy_template(
+                str(data.get("goods_line_template") or ""), LEGACY_GOODS_LINE_TEMPLATE),
             channels=channels,
             tasks=tasks,
             console_auth=dict(data.get("console_auth") or {}),

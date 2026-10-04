@@ -95,15 +95,15 @@ Server 酱/PushPlus/企微/WxPusher 收 Markdown，Bark 收等价纯文本。接
 
 ## 通知模板
 
-「全局设置 → 通知模板」可自定义推送内容，三层模板**留空即用内置默认**，改完点「👁 用示例数据预览」看效果：
+「全局设置 → 通知模板」可自定义推送内容，三层模板编辑框里已**预填内置默认**（即下表），改完点「👁 用示例数据预览」看效果，「↺ 还原默认模板」可一键回填（带二次确认）：
 
 | 模板 | 可用占位符 | 内置默认 |
 | --- | --- | --- |
-| 标题 | `{prefix}` `{shop_id}` `{refresh_count}` `{max_refresh_count}` `{date}` `{goods_count}` | `{prefix}｜商店{shop_id}（第{refresh_count}/{max_refresh_count}次）` |
-| 正文（Markdown） | `{queried}` `{source}` `{date}` `{refresh_count}` `{max_refresh_count}` `{goods_count}` `{goods_list}` `{shop_id}` | 引用行（查询时间/来源）+ 刷新轮次 + `{goods_list}` + 商品总数 |
-| 商品行（每件商品一行） | `{name}` `{price}` `{limit}` `{window}` `{item_num}` `{goods_id}` | `- **{name}**｜{price}｜限购 {limit}｜{window}` |
+| 标题 | `{prefix}` `{shop_id}` `{refresh_count}` `{max_refresh_count}` `{date}` `{goods_count}` | `洛克王国远行商人（第{refresh_count}/{max_refresh_count}次）` |
+| 正文（Markdown） | `{goods_count}` `{goods_names}` `{countdown}` `{refresh_count}` `{max_refresh_count}` `{queried}` `{source}` `{date}` `{goods_list}` `{shop_id}` | 商品数与名称汇总 + `轮次：x/y · 剩余：{countdown}` + `{goods_list}` |
+| 商品条目（每件商品可多行） | `{index}` `{name}` `{period}` `{price}` `{price_num}` `{limit}` `{total}` `{window}` `{item_num}` `{goods_id}` | 序号 + 名称 + `时段：{period}` + 价格/数量/合计（{total}=单价×数量，自动换算“X万洛克贝”） |
 
-说明：正文里的 `{goods_list}` 即商品行模板逐件渲染的结果；`{limit}`/`{window}` 等为空时会自动收起悬空的 `｜` 分隔符；Bark 等纯文本渠道收到的是模板正文的去 Markdown 版本；子商品暂不支持自定义模板（沿用内置缩进格式）。
+说明：`{countdown}` 为距下一档位边界的倒计时（8/12/16/20/24 点，8 点前显示“未开市”）；`{period}` 为供应时段（结束为午夜 00:00 时按 23:59 显示）；字段为空时自动收起悬空的行和 `｜` 分隔符；Bark 等纯文本渠道收到的是模板正文去 Markdown 的版本；子商品暂不支持自定义模板。
 
 ## 常见问题
 
