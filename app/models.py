@@ -122,6 +122,23 @@ class TaskConfig:
         return now.strftime("%H:%M") in self.times
 
 
+def _parse_shop_ids(raw: Any) -> list[str]:
+    """商店 ID 兼容字符串（"3009,3019"）与数组两种形态，并清洗历史污染数据。"""
+    if isinstance(raw, str):
+        parts = raw.split(",")
+    elif isinstance(raw, (list, tuple)):
+        parts = [str(item) for item in raw]
+    else:
+        parts = []
+    out = []
+    for item in parts:
+        # 清掉历史 bug 造成的引号/方括号包裹，如 "['3009']"
+        cleaned = re.sub(r"[\[\]'\"]", "", str(item)).strip()
+        if cleaned and cleaned not in out:
+            out.append(cleaned)
+    return out
+
+
 @dataclass
 class AppConfig:
     rocom_api_key: str = ""
@@ -177,7 +194,7 @@ class AppConfig:
                 raise ValueError(f"任务「{t.name}」引用了不存在的渠道：{', '.join(unknown)}")
         return cls(
             rocom_api_key=str(data.get("rocom_api_key") or "").strip(),
-            shop_ids=[s.strip() for s in str(data.get("shop_ids") or "").split(",") if s.strip()],
+            shop_ids=_parse_shop_ids(data.get("shop_ids")),
             wait_ms=_int(data.get("wait_ms"), 8000),
             http_timeout=_int(data.get("http_timeout"), 30),
             max_retries=_int(data.get("max_retries"), 3),

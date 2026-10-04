@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-import requests
+
+from .common import http_get, http_post
 
 from .common import truncate_bytes
 
@@ -26,7 +27,7 @@ def send(config: dict, title: str, markdown: str, text: str) -> None:
         payload["topicIds"] = topics
     if not uids and not topics:
         raise RuntimeError("uids 与 topic_ids 至少配置一个")
-    resp = requests.post(URL, json=payload, timeout=15)
+    resp = http_post(URL, json=payload, timeout=15)
     resp.raise_for_status()
     body = resp.json()
     if not body.get("success", body.get("code") == 1000):

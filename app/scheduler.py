@@ -191,6 +191,7 @@ class SchedulerService:
         errors: dict[str, str] = {}
         for shop in shop_keys:
             key = shop or "default"
+            log.info("开始拉取远行商人数据（商店：%s）", key)
             try:
                 payloads[key] = client.fetch_merchant(shop)
             except Exception as exc:  # noqa: BLE001

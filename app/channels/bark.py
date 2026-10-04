@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-import requests
+
+from .common import http_get, http_post
 
 from .common import truncate_bytes
 
@@ -17,7 +18,7 @@ def send(config: dict, title: str, markdown: str, text: str) -> None:
         if config.get(key):
             payload[key] = config[key]
     server = config.get("server") or "https://api.day.app"
-    resp = requests.post(f"{server.rstrip('/')}/push", json=payload, timeout=15)
+    resp = http_post(f"{server.rstrip('/')}/push", json=payload, timeout=15)
     resp.raise_for_status()
     body = resp.json()
     if body.get("code") != 200:

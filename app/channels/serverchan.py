@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-import requests
+
+from .common import http_get, http_post
 
 
 def send(config: dict, title: str, markdown: str, text: str) -> None:
-    resp = requests.post(
+    resp = http_post(
         f"https://sctapi.ftqq.com/{config['sendkey']}.send",
         data={"title": title[:32], "desp": markdown},
         timeout=15,

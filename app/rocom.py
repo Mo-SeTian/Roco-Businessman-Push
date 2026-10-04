@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 import time
 
-import requests
+from .channels.common import new_logged_session
 
 log = logging.getLogger("rocom")
 
@@ -39,7 +39,7 @@ class MerchantClient:
         self.http_timeout = http_timeout
         self.max_retries = max_retries
         self.retry_delay = retry_delay
-        self.session = requests.Session()
+        self.session = new_logged_session()
         self.session.headers.update(
             {
                 "X-API-Key": api_key,

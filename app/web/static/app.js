@@ -124,7 +124,6 @@ async function saveTask() {
     toast("任务已保存");
   } catch (e) { toast("保存失败：" + e.message, 4000); }
 }
-
 async function delTask(id) {
   if (!confirm("确定删除该任务？")) return;
   try { await api("/api/config", { method: "POST", body: buildPayload(null, "task-del", id) }); await refresh(true); toast("已删除"); }
@@ -343,7 +342,11 @@ function buildPayload(item, mode, delId) {
   } else if (mode === "task-del") {
     tasks = tasks.filter(t => t.id !== delId);
   }
-  return { ...cfg, channels, tasks };
+  return {
+    ...cfg, channels, tasks,
+    // 商店 ID 统一以字符串提交，避免数组被后端 str() 序列化污染
+    shop_ids: Array.isArray(cfg.shop_ids) ? cfg.shop_ids.join(",") : (cfg.shop_ids || ""),
+  };
 }
 
 /* ---------- 初始化 ---------- */

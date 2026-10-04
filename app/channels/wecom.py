@@ -5,9 +5,7 @@ from __future__ import annotations
 import threading
 import time
 
-import requests
-
-from .common import truncate_bytes
+from .common import http_get, http_post, truncate_bytes
 
 _TOKEN_URL = "https://qyapi.weixin.qq.com/cgi-bin/gettoken"
 _SEND_URL = "https://qyapi.weixin.qq.com/cgi-bin/message/send"
@@ -23,7 +21,7 @@ def _get_token(corp_id: str, corp_secret: str) -> str:
         cached = _token_cache.get(cache_key)
         if cached and cached[1] > time.time():
             return cached[0]
-    resp = requests.get(
+    resp = http_get(
         _TOKEN_URL, params={"corpid": corp_id, "corpsecret": corp_secret}, timeout=15
     )
     resp.raise_for_status()
@@ -47,7 +45,7 @@ def send(config: dict, title: str, markdown: str, text: str) -> None:
         "agentid": int(config["agent_id"]),
         "markdown": {"content": content},
     }
-    resp = requests.post(_SEND_URL, params={"access_token": token}, json=payload, timeout=15)
+    resp = http_post(_SEND_URL, params={"access_token": token}, json=payload, timeout=15)
     resp.raise_for_status()
     body = resp.json()
     if body.get("errcode") != 0:
