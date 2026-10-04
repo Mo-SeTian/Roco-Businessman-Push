@@ -123,6 +123,8 @@ def _norm_good(good: Any, mapping: dict[str, dict], slot_start_ts: int, day_open
         "amount": amount,
         "limit": limit if isinstance(limit, int) else None,
         "item_num": info.get("item_num"),
+        # 全天供应：不参与档位轮换（next_refresh_time=0），仅有下架时间或常驻
+        "all_day": refresh_ts == 0,
         # 可购窗口：start 由档位推算；推算不出时由 _window 回退为“现在”
         "start": _ts(start_ts),
         "end": _ts(end_ts),
@@ -200,14 +202,16 @@ def _countdown(now: datetime) -> str:
 
 
 def _period(good: dict) -> str:
-    """时段展示：08:00 - 23:59（结束为午夜 00:00 时按当日收市 23:59 显示）。"""
+    """供应时段：档位商品显示 起始-结束（午夜收市按 23:59），全天商品显示“全天”。"""
+    if good.get("all_day"):
+        return "全天"
     start, end = good.get("start") or "", good.get("end") or ""
     start_hm = start.split("-", 1)[1] if "-" in start else start
     end_hm = end.split("-", 1)[1] if "-" in end else end
     if end_hm == "00:00":
         end_hm = "23:59"
     if not end_hm:
-        return "全天供应"
+        return "全天"
     return f"{start_hm or '现在'} - {end_hm}"
 
 
@@ -271,7 +275,8 @@ def _fill(template: str, mapping: dict) -> str:
     out = template
     for key, value in mapping.items():
         out = out.replace("{" + key + "}", str(value))
-    return out
+    # 换行标识：{nl} 与字面 \n 均转为真实换行
+    return out.replace("{nl}", "\n").replace("\\n", "\n")
 
 
 def _cleanup_line(line: str) -> str:

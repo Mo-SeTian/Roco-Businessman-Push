@@ -278,7 +278,7 @@ const SETTING_FIELDS = [
 const SETTING_GROUPS = [
   ["接口设置", "🔑 对接洛克魔法书开放 API 的基础参数"],
   ["推送行为", "📤 标题前缀与启动行为"],
-  ["通知模板", "📝 模板已预填内置默认，可直接修改。标题：{prefix} {shop_id} {refresh_count} {max_refresh_count}；正文：{goods_count} {goods_names} {countdown} {goods_list} 等；商品条目：{index} {name} {period} {price} {limit} {total} 等，字段为空自动收起悬空行"],
+  ["通知模板", "📝 模板已预填内置默认，可直接修改。标题：{prefix} {shop_id} {refresh_count} {max_refresh_count}；正文：{goods_count} {goods_names} {countdown} {goods_list} 等；商品条目：{index} {name} {period} {price} {limit} {total} 等；{nl} 或 \\n 表示换行；全天商品 {period} 显示为「全天」"],
   ["数据保留", "🗄 文件日志与调用历史的保留天数，保存即生效"],
 ];
 
