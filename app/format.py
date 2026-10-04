@@ -279,11 +279,6 @@ def _fill(template: str, mapping: dict) -> str:
     return out.replace("{nl}", "\n").replace("\\n", "\n")
 
 
-def _cleanup_line(line: str) -> str:
-    """模板字段为空时收掉悬空的分隔符。"""
-    return re.sub(r"｜{2,}", "｜", line).rstrip("｜ ").rstrip()
-
-
 def _goods_list(norm: dict, tpl: TemplateSettings, queried_dt: datetime | None) -> str:
     goods = norm.get("goods") or []
     if not goods:
@@ -311,9 +306,15 @@ def _goods_list(norm: dict, tpl: TemplateSettings, queried_dt: datetime | None) 
             "item_num": g.get("item_num") if g.get("item_num") is not None else "",
             "goods_id": g.get("goods_id") or "",
         })
-        # 模板字段为空时收起悬空的“标签：”行与“｜”分隔符
-        kept = [ln for ln in filled.splitlines() if ln.strip() and not re.match(r"^[^：]{1,16}：\s*$", ln)]
-        blocks.append(_cleanup_line("\n".join(kept)))
+        # 收起字段为空的悬空“标签：”行；模板自身的空行（如末尾 {nl}）保留，用于商品间分隔。
+        # 逐行清理悬空“｜”，不能对整块 rstrip，否则会吞掉尾部的空行
+        kept = []
+        for ln in filled.splitlines():
+            s = ln.strip()
+            if s and re.match(r"^[^：]{1,16}：\s*$", s):
+                continue
+            kept.append(re.sub(r"｜{2,}", "｜", ln).rstrip("｜ ").rstrip())
+        blocks.append("\n".join(kept))
         for s in g.get("sub_goods", []):
             sub_bits = [f"**{s['name']}**"]
             if s.get("price"):
