@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -12,8 +13,10 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import auth as web_auth
+from .. import format as fmt
 from ..channels import send_instance
 from ..channels.manifest import CHANNEL_TYPES
+from ..format import TemplateSettings
 from ..history import HistoryStore
 from ..models import ChannelInstance
 from ..scheduler import SchedulerService
@@ -190,6 +193,19 @@ def create_app(store: AppConfigStore | None = None, scheduler: SchedulerService 
             "history": history.query(days) if history else {},
         }
 
+    async def api_template_preview(request: Request, _=Depends(_api_guard)):
+        payload = await request.json()
+        tpl = TemplateSettings(
+            title_prefix=str(payload.get("title_prefix") or "洛克王国远行商人"),
+            title_template=str(payload.get("title_template") or ""),
+            body_template=str(payload.get("body_template") or ""),
+            goods_line_template=str(payload.get("goods_line_template") or ""),
+        )
+        sample_path = Path(__file__).resolve().parent.parent.parent / "sample_data.json"
+        sample = json.loads(sample_path.read_text(encoding="utf-8"))
+        msg = fmt.build_message(sample, tpl)
+        return JSONResponse({"title": msg["title"], "markdown": msg["markdown"], "text": msg["text"]})
+
     async def api_logs(request: Request, _=Depends(_api_guard)):
         from ..logs import ring
 
@@ -223,5 +239,6 @@ def create_app(store: AppConfigStore | None = None, scheduler: SchedulerService 
     app.add_api_route("/api/run-all", api_run_all, methods=["POST"])
     app.add_api_route("/api/logs", api_logs, methods=["GET"])
     app.add_api_route("/api/history", api_history, methods=["GET"])
+    app.add_api_route("/api/template-preview", api_template_preview, methods=["POST"])
     app.mount("/static", StaticFiles(directory=str(PACKAGE_DIR / "static")), name="static")
     return app

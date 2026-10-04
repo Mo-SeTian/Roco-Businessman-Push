@@ -86,8 +86,13 @@ def show_config(store: AppConfigStore) -> None:
 
 
 def run_demo(env: GlobalEnv) -> None:
+    from types import SimpleNamespace
+
     payload = json.loads(SAMPLE_FILE.read_text(encoding="utf-8"))
-    msg = fmt.build_message(payload, env.title_prefix)
+    tpl = SimpleNamespace(
+        title_prefix=env.title_prefix, title_template="", body_template="", goods_line_template="",
+    )
+    msg = fmt.build_message(payload, tpl)
     print(f"标题: {msg['title']}\n")
     print("----- Markdown（Server酱/PushPlus/企微/WxPusher）-----")
     print(msg["markdown"])

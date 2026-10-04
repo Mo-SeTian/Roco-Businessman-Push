@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import re
 import time
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
@@ -179,13 +180,110 @@ def normalize(payload: dict) -> dict:
     }
 
 
-def build_title(norm: dict, prefix: str) -> str:
-    shop = f"商店{norm['shop_id']}" if norm.get("shop_id") not in ("", None) else ""
-    head = f"{prefix}｜{shop}" if shop else prefix
+# ---- 通知模板 ----
+# 三层模板：标题 / 正文(Markdown) / 商品行。留空 = 使用内置默认。
+# 正文里的 {goods_list} 由商品行模板逐件渲染；子商品沿用内置缩进格式。
+DEFAULT_TITLE_PREFIX = "洛克王国远行商人"
+DEFAULT_TITLE_TEMPLATE = "{prefix}｜商店{shop_id}（第{refresh_count}/{max_refresh_count}次）"
+DEFAULT_BODY_TEMPLATE = (
+    "> 查询时间 {queried}｜来源 {source}\n"
+    "商店已刷新：**{refresh_count}/{max_refresh_count}** 次\n"
+    "\n{goods_list}\n\n共 {goods_count} 件商品"
+)
+DEFAULT_GOODS_LINE_TEMPLATE = "- **{name}**｜{price}｜限购 {limit}｜{window}"
+
+TITLE_VARS = "{prefix} {shop_id} {refresh_count} {max_refresh_count}"
+BODY_VARS = "{queried} {source} {date} {refresh_count} {max_refresh_count} {goods_count} {goods_list} {shop_id}"
+GOODS_VARS = "{name} {price} {limit} {window} {item_num} {goods_id}"
+
+
+@dataclass
+class TemplateSettings:
+    title_prefix: str = DEFAULT_TITLE_PREFIX
+    title_template: str = ""
+    body_template: str = ""
+    goods_line_template: str = ""
+
+
+def _fill(template: str, mapping: dict) -> str:
+    out = template
+    for key, value in mapping.items():
+        out = out.replace("{" + key + "}", str(value))
+    return out
+
+
+def _cleanup_line(line: str) -> str:
+    """模板字段为空时收掉悬空的分隔符。"""
+    return re.sub(r"｜{2,}", "｜", line).rstrip("｜ ").rstrip()
+
+
+def _goods_list(norm: dict, tpl: TemplateSettings) -> str:
+    goods = norm.get("goods") or []
+    if not goods:
+        return (
+            "本次未获取到商品明细（可能未到刷新时间）。\n\n```json\n"
+            + json.dumps(norm["_raw"], ensure_ascii=False)[:JSON_FALLBACK_LIMIT]
+            + "\n```"
+        )
+    line_tpl = tpl.goods_line_template.strip() or DEFAULT_GOODS_LINE_TEMPLATE
+    lines: list[str] = []
+    for g in goods:
+        line = _cleanup_line(_fill(line_tpl, {
+            "name": g.get("name") or f"商品{g.get('goods_id')}",
+            "price": g.get("price") or "",
+            "limit": g.get("limit") if g.get("limit") is not None else "",
+            "window": _window(g),
+            "item_num": g.get("item_num") if g.get("item_num") is not None else "",
+            "goods_id": g.get("goods_id") or "",
+        }))
+        lines.append(line)
+        for s in g.get("sub_goods", []):
+            sub_bits = [f"**{s['name']}**"]
+            if s.get("price"):
+                sub_bits.append(s["price"])
+            if s.get("item_num") not in (None, ""):
+                sub_bits.append(f"x{s['item_num']}")
+            sub_window = _window(s)
+            if sub_window:
+                sub_bits.append(sub_window)
+            lines.append(f"  - " + "｜".join(sub_bits))
+    return "\n".join(lines)
+
+
+def _refresh_pair(norm: dict) -> tuple[str, str]:
     rc, mr = norm.get("refresh_count"), norm.get("max_refresh_count")
     if isinstance(rc, int) and isinstance(mr, int) and mr > 0:
-        head += f"（第{rc}/{mr}次）"
-    return head
+        return str(rc), str(mr)
+    return "", ""
+
+
+def _tpl_of(tpl: Any) -> TemplateSettings:
+    if isinstance(tpl, TemplateSettings):
+        return tpl
+    if isinstance(tpl, str):
+        return TemplateSettings(title_prefix=tpl)
+    if tpl is None:
+        return TemplateSettings()
+    return TemplateSettings(
+        title_prefix=getattr(tpl, "title_prefix", DEFAULT_TITLE_PREFIX),
+        title_template=getattr(tpl, "title_template", "") or "",
+        body_template=getattr(tpl, "body_template", "") or "",
+        goods_line_template=getattr(tpl, "goods_line_template", "") or "",
+    )
+
+
+def build_title(norm: dict, tpl: Any) -> str:
+    tpl = _tpl_of(tpl)
+    rc, mr = _refresh_pair(norm)
+    now = datetime.now()
+    return _fill(tpl.title_template.strip() or DEFAULT_TITLE_TEMPLATE, {
+        "prefix": tpl.title_prefix,
+        "shop_id": norm.get("shop_id", ""),
+        "refresh_count": rc,
+        "max_refresh_count": mr,
+        "date": f"{now.month}月{now.day}日",
+        "goods_count": len(norm.get("goods") or []),
+    })
 
 
 def _window(good: dict) -> str:
@@ -200,90 +298,56 @@ def _window(good: dict) -> str:
     return f"可购 {start} ~ {tail}"
 
 
-def _good_lines(norm: dict, indent: str = "") -> list[str]:
-    lines: list[str] = []
-    for g in norm.get("goods", []):
-        bits = [f"**{g['name']}**"]
-        if g.get("price"):
-            bits.append(g["price"])
-        if isinstance(g.get("limit"), int):
-            bits.append(f"限购 {g['limit']}")
-        window = _window(g)
-        if window:
-            bits.append(window)
-        lines.append(f"{indent}- " + "｜".join(bits))
-        for s in g.get("sub_goods", []):
-            sub_bits = [f"**{s['name']}**"]
-            if s.get("price"):
-                sub_bits.append(s["price"])
-            if s.get("item_num") not in (None, ""):
-                sub_bits.append(f"x{s['item_num']}")
-            sub_window = _window(s)
-            if sub_window:
-                sub_bits.append(sub_window)
-            lines.append(f"{indent}  - " + "｜".join(sub_bits))
-    return lines
+def build_markdown(norm: dict, tpl: Any) -> str:
+    tpl = _tpl_of(tpl)
+    rc, mr = _refresh_pair(norm)
+    now = datetime.now()
+    body_tpl = tpl.body_template.strip() or DEFAULT_BODY_TEMPLATE
+    return _fill(body_tpl, {
+        "prefix": tpl.title_prefix,
+        "shop_id": norm.get("shop_id", ""),
+        "queried": norm.get("queried", ""),
+        "source": norm.get("source", ""),
+        "date": f"{now.month}月{now.day}日",
+        "refresh_count": rc,
+        "max_refresh_count": mr,
+        "goods_count": len(norm.get("goods") or []),
+        "goods_list": _goods_list(norm, tpl),
+    })
 
 
-def build_markdown(norm: dict) -> str:
-    md: list[str] = []
-    meta_bits = []
-    if norm.get("queried"):
-        meta_bits.append(f"查询时间 {norm['queried']}")
-    if norm.get("source"):
-        meta_bits.append(f"来源 {norm['source']}")
-    if meta_bits:
-        md.append("> " + "｜".join(meta_bits))
-    rc, mr = norm.get("refresh_count"), norm.get("max_refresh_count")
-    if isinstance(rc, int) and isinstance(mr, int) and mr > 0:
-        md.append(f"商店已刷新：**{rc}/{mr}** 次")
-    lines = _good_lines(norm)
-    if lines:
-        md.append("")
-        md.extend(lines)
-        md.append("")
-        md.append(f"共 {len(norm['goods'])} 件商品")
-    else:
-        md.append("")
-        md.append("本次未获取到商品明细（可能未到刷新时间）。")
-        md.append("")
-        md.append("```json")
-        md.append(json.dumps(norm["_raw"], ensure_ascii=False)[:JSON_FALLBACK_LIMIT])
-        md.append("```")
-    return "\n".join(md)
+_MD_MARKS = (
+    (re.compile(r"\*\*"), ""),
+    (re.compile(r"^#{1,6} ", re.M), ""),
+    (re.compile(r"^> ?", re.M), ""),
+    (re.compile(r"^ - ", re.M), "· "),
+    (re.compile(r"^- ", re.M), "· "),
+    (re.compile(r"```[a-z]*\n"), ""),
+    (re.compile(r"```"), ""),
+)
 
 
-def build_text(norm: dict) -> str:
-    lines: list[str] = []
-    if norm.get("queried"):
-        lines.append(f"查询时间：{norm['queried']}")
-    rc, mr = norm.get("refresh_count"), norm.get("max_refresh_count")
-    if isinstance(rc, int) and isinstance(mr, int) and mr > 0:
-        lines.append(f"商店已刷新：{rc}/{mr} 次")
-    for g in norm.get("goods", []):
-        bits = [g["name"]]
-        if g.get("price"):
-            bits.append(g["price"])
-        if isinstance(g.get("limit"), int):
-            bits.append(f"限购{g['limit']}")
-        window = _window(g)
-        if window:
-            bits.append(window)
-        lines.append("· " + "  ".join(bits))
-        for s in g.get("sub_goods", []):
-            lines.append(f"    - {s['name']}")
-    if not lines:
-        lines.append("本次未获取到商品明细（可能未到刷新时间）。")
-        lines.append(json.dumps(norm["_raw"], ensure_ascii=False)[:JSON_FALLBACK_LIMIT])
-    return "\n".join(lines)
+def _plain(markdown: str) -> str:
+    """Markdown -> 纯文本（Bark 等纯文本渠道），与模板正文保持一致。"""
+    text = markdown
+    for pattern, repl in _MD_MARKS:
+        text = pattern.sub(repl, text)
+    return re.sub(r"\n{3,}", "\n\n", text).strip()
 
 
-def build_message(payload: dict, prefix: str) -> dict:
-    """返回 {title, markdown, text, fingerprint_src}。"""
+def build_text(norm: dict, tpl: Any) -> str:
+    return _plain(build_markdown(norm, tpl))
+
+
+def build_message(payload: dict, tpl: Any = None) -> dict:
+    """tpl 可为 AppConfig / TemplateSettings / 旧式 title_prefix 字符串 / None。
+
+    返回 {title, markdown, text, fingerprint_src}。
+    """
     norm = normalize(payload)
     return {
-        "title": build_title(norm, prefix),
-        "markdown": build_markdown(norm),
-        "text": build_text(norm),
+        "title": build_title(norm, tpl),
+        "markdown": build_markdown(norm, tpl),
+        "text": build_text(norm, tpl),
         "fingerprint_src": norm["_fp_src"],
     }

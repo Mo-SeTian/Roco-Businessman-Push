@@ -151,6 +151,9 @@ class AppConfig:
     log_retention_days: int = 7    # 文件日志保留天数
     history_days: int = 30         # 调用历史保留天数
     run_on_start: bool = False     # 启动时立即执行一轮（默认关闭）
+    title_template: str = ""       # 通知模板：标题（空 = 内置默认）
+    body_template: str = ""        # 通知模板：正文 Markdown（空 = 内置默认）
+    goods_line_template: str = ""  # 通知模板：商品行（空 = 内置默认）
     channels: list[ChannelInstance] = field(default_factory=list)
     tasks: list[TaskConfig] = field(default_factory=list)
     console_auth: dict = field(default_factory=dict)  # {username, password_sha256}
@@ -167,6 +170,9 @@ class AppConfig:
             "log_retention_days": self.log_retention_days,
             "history_days": self.history_days,
             "run_on_start": self.run_on_start,
+            "title_template": self.title_template,
+            "body_template": self.body_template,
+            "goods_line_template": self.goods_line_template,
             "channels": [c.to_dict() for c in self.channels],
             "tasks": [t.to_dict() for t in self.tasks],
             "console_auth": dict(self.console_auth),
@@ -209,6 +215,9 @@ class AppConfig:
             log_retention_days=_int(data.get("log_retention_days"), 7),
             history_days=_int(data.get("history_days"), 30),
             run_on_start=_bool(data.get("run_on_start"), False),
+            title_template=str(data.get("title_template") or ""),
+            body_template=str(data.get("body_template") or ""),
+            goods_line_template=str(data.get("goods_line_template") or ""),
             channels=channels,
             tasks=tasks,
             console_auth=dict(data.get("console_auth") or {}),

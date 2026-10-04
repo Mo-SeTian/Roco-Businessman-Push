@@ -31,6 +31,9 @@ button:hover{filter:brightness(.96)}
 .form input[type=text],.form input[type=password],.form input[type=number],.editor input[type=text],
 .editor input[type=password],.editor input[type=number],.editor select{
   width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:14px}
+.form textarea{width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #ddd;border-radius:8px;
+  font-size:13px;font-family:ui-monospace,Consolas,"Courier New",monospace;line-height:1.6;resize:vertical}
+.form label{margin-top:16px}
 .checkbox{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:14px}
 .checks{display:flex;flex-direction:column;gap:6px;margin-top:6px}
 .checks label{display:flex;align-items:center;gap:8px;margin:0;font-size:14px;color:#333}

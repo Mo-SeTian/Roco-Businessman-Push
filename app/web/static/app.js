@@ -289,7 +289,29 @@ function renderSettings() {
     const ph = key === "rocom_api_key" && cfg.has_rocom_api_key ? "已配置（留空保持不变）" : "";
     return `<label>${label}</label><input type="${type}" id="set-${key}" value="${esc(values[key])}" placeholder="${esc(ph)}">`;
   }).join("") + `<div class="checkbox"><input type="checkbox" id="set-run-on-start" ${cfg.run_on_start ? "checked" : ""}>
-    启动容器时立即执行一轮（默认关闭；开启后每次重启都会先拉一次数据并按任务推送）</div>`;
+    启动容器时立即执行一轮（默认关闭；开启后每次重启都会先拉一次数据并按任务推送）</div>
+  <h2 style="margin-top:26px">通知模板</h2>
+  <p class="hint">三层模板均可自定义，<b>留空使用内置默认</b>。标题可用：{prefix} {shop_id} {refresh_count} {max_refresh_count} {date} {goods_count}；正文可用：{queried} {source} {date} {refresh_count} {max_refresh_count} {goods_count} {goods_list} {shop_id}；商品行可用：{name} {price} {limit} {window} {item_num} {goods_id}。正文中的 {goods_list} 即商品行模板逐件渲染的结果。</p>
+  <label>标题模板</label><textarea id="set-title-template" rows="2" placeholder="${esc("默认：{prefix}｜商店{shop_id}（第{refresh_count}/{max_refresh_count}次）")}">${esc(cfg.title_template || "")}</textarea>
+  <label>正文模板（Markdown）</label><textarea id="set-body-template" rows="7" placeholder="留空使用默认模板">${esc(cfg.body_template || "")}</textarea>
+  <label>商品行模板（每件商品一行）</label><textarea id="set-goods-line-template" rows="2" placeholder="${esc("默认：- **{name}**｜{price}｜限购 {limit}｜{window}")}">${esc(cfg.goods_line_template || "")}</textarea>
+  <div class="actions"><button id="tpl-preview">👁 用示例数据预览</button></div>
+  <pre id="tpl-preview-out" class="mono" hidden></pre>`;
+  $("tpl-preview").onclick = previewTemplate;
+}
+
+async function previewTemplate() {
+  try {
+    const r = await api("/api/template-preview", { method: "POST", body: {
+      title_prefix: cfg.title_prefix,
+      title_template: $("set-title-template").value,
+      body_template: $("set-body-template").value,
+      goods_line_template: $("set-goods-line-template").value,
+    } });
+    const out = $("tpl-preview-out");
+    out.hidden = false;
+    out.textContent = `【标题】${r.title}\n\n【Markdown 正文】\n${r.markdown}\n\n【纯文本（Bark）】\n${r.text}`;
+  } catch (e) { toast(e.message, 4000); }
 }
 
 function renderAccount() {
@@ -333,6 +355,9 @@ async function saveSettings() {
     log_retention_days: +v("log_retention_days") || 7,
     history_days: +v("history_days") || 30,
     run_on_start: $("set-run-on-start").checked,
+    title_template: $("set-title-template").value,
+    body_template: $("set-body-template").value,
+    goods_line_template: $("set-goods-line-template").value,
   };
   try {
     await api("/api/config", { method: "POST", body });

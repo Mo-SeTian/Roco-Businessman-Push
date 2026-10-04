@@ -217,7 +217,7 @@ class SchedulerService:
                     report.append(entry)
                     continue
 
-                msg = build_message(payloads[key], cfg.title_prefix)
+                msg = build_message(payloads[key], cfg)
                 fp = fingerprint(msg["fingerprint_src"])
                 state_key = f"{task.id}:{key}"
                 if not force and task.only_on_change and self.state_store.get_fingerprint(state_key) == fp:

@@ -93,6 +93,18 @@ Server 酱/PushPlus/企微/WxPusher 收 Markdown，Bark 收等价纯文本。接
 
 用 `docker run` 时记得手动挂载：`-v /your/path/data:/data`。控制台登录会话存于内存，重启后需重新登录（有意为之）。
 
+## 通知模板
+
+「全局设置 → 通知模板」可自定义推送内容，三层模板**留空即用内置默认**，改完点「👁 用示例数据预览」看效果：
+
+| 模板 | 可用占位符 | 内置默认 |
+| --- | --- | --- |
+| 标题 | `{prefix}` `{shop_id}` `{refresh_count}` `{max_refresh_count}` `{date}` `{goods_count}` | `{prefix}｜商店{shop_id}（第{refresh_count}/{max_refresh_count}次）` |
+| 正文（Markdown） | `{queried}` `{source}` `{date}` `{refresh_count}` `{max_refresh_count}` `{goods_count}` `{goods_list}` `{shop_id}` | 引用行（查询时间/来源）+ 刷新轮次 + `{goods_list}` + 商品总数 |
+| 商品行（每件商品一行） | `{name}` `{price}` `{limit}` `{window}` `{item_num}` `{goods_id}` | `- **{name}**｜{price}｜限购 {limit}｜{window}` |
+
+说明：正文里的 `{goods_list}` 即商品行模板逐件渲染的结果；`{limit}`/`{window}` 等为空时会自动收起悬空的 `｜` 分隔符；Bark 等纯文本渠道收到的是模板正文的去 Markdown 版本；子商品暂不支持自定义模板（沿用内置缩进格式）。
+
 ## 常见问题
 
 - **401**：API Key 未配置/无效，或没订阅「RoCom Ingame 商店信息」。
