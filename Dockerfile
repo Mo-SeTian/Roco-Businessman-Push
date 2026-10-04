@@ -18,12 +18,12 @@ COPY app ./app
 COPY sample_data.json ./
 
 RUN useradd --create-home appuser \
-    && mkdir -p /data \
-    && chown -R appuser:appuser /app /data
+    && mkdir -p /data /logs \
+    && chown -R appuser:appuser /app /data /logs
 
 USER appuser
 
-VOLUME ["/data"]
+VOLUME ["/data", "/logs"]
 EXPOSE 19892
 
 CMD ["python", "-m", "app.main"]

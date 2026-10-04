@@ -11,6 +11,7 @@ services:
       - "${WEB_PORT:-19892}:19892"
     volumes:
       - ./data:/data
+      - ./logs:/logs
     # 默认启动 Web 控制台 + 后台调度；
     # 只跑调度不启 Web：command: ["python","-m","app.main","--scheduler"]
     # 配合外部 cron：command: ["python","-m","app.main","--once"]

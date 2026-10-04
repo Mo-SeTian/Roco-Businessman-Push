@@ -18,7 +18,6 @@ from pathlib import Path
 
 from . import format as fmt
 from .config import GlobalEnv
-from .rocom import MerchantClient
 from .scheduler import SchedulerService
 from .state import StateStore
 from .store import AppConfigStore
@@ -26,16 +25,35 @@ from .store import AppConfigStore
 SAMPLE_FILE = Path(__file__).resolve().parent.parent / "sample_data.json"
 
 
-def setup_logging(level: str = "INFO") -> None:
+def setup_logging(level: str = "INFO", log_dir: str = "logs", retention_days: int = 7) -> None:
     logging.basicConfig(
         level=getattr(logging, level, logging.INFO),
         format="%(asctime)s %(levelname)-7s %(name)s: %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    root = logging.getLogger()
     # 环形缓冲供 Web 控制台「日志」页查看（采集级别跟随 LOG_LEVEL）
     from .logs import ring
 
-    logging.getLogger().addHandler(ring)
+    root.addHandler(ring)
+    # 文件日志：按天滚动，保留 retention_days 天后自动清理
+    from logging.handlers import TimedRotatingFileHandler
+
+    try:
+        Path(log_dir).mkdir(parents=True, exist_ok=True)
+        file_handler = TimedRotatingFileHandler(
+            Path(log_dir) / "rocom-push.log",
+            when="midnight",
+            backupCount=max(1, retention_days),
+            encoding="utf-8",
+        )
+        file_handler.setFormatter(
+            logging.Formatter("%(asctime)s %(levelname)-7s %(name)s: %(message)s",
+                              datefmt="%Y-%m-%d %H:%M:%S")
+        )
+        root.addHandler(file_handler)
+    except OSError as exc:
+        logging.getLogger("main").warning("文件日志目录不可用（%s），仅保留控制台与内存日志", exc)
 
 
 def run_once_all(store: AppConfigStore, state_store: StateStore) -> None:
@@ -83,7 +101,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     env = GlobalEnv.from_env()
-    setup_logging()
+    setup_logging("INFO", env.log_dir, env.log_retention_days)
 
     if args.demo:
         run_demo(env)

@@ -29,6 +29,8 @@ class GlobalEnv:
     title_prefix: str = "洛克王国远行商人"
     config_path: str = "data/config.json"
     state_path: str = "data/state.json"
+    log_dir: str = "logs"
+    log_retention_days: int = 7
     web_host: str = "0.0.0.0"
     web_port: int = 19892
     console_username: str = "admin"
@@ -44,6 +46,7 @@ class GlobalEnv:
         state_path = e.get("STATE_FILE") or (
             "/data/state.json" if os.path.isdir("/data") else "data/state.json"
         )
+        log_dir = e.get("LOG_DIR") or ("/logs" if os.path.isdir("/logs") else "logs")
         return cls(
             api_base=e.get("ROCOM_API_BASE", cls.api_base).rstrip("/"),
             api_key=e.get("ROCOM_API_KEY", "").strip(),
@@ -55,6 +58,8 @@ class GlobalEnv:
             title_prefix=e.get("PUSH_TITLE_PREFIX", cls.title_prefix),
             config_path=config_path,
             state_path=state_path,
+            log_dir=log_dir,
+            log_retention_days=_int(e.get("LOG_RETENTION_DAYS"), 7),
             web_host=e.get("WEB_HOST", cls.web_host),
             web_port=_int(e.get("WEB_PORT"), 19892),
             console_username=e.get("CONSOLE_USERNAME", cls.console_username).strip() or "admin",

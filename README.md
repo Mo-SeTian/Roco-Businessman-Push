@@ -57,6 +57,9 @@ docker compose up -d --build
 | `CONSOLE_USERNAME` / `CONSOLE_PASSWORD` | `admin` / `admin` | 首次初始化的控制台账号密码（之后在 WebUI 里修改） |
 | `CONFIG_PATH` / `STATE_FILE` | `/data/config.json`、`/data/state.json` | 配置与状态文件 |
 | `RUN_ON_START` | `1` | 调度启动时立即执行一轮 |
+| `LOG_LEVEL` | `INFO` | 日志采集级别（控制台/文件/WebUI 日志页共用，`DEBUG` 最详细） |
+| `LOG_DIR` | `/logs` | 文件日志目录（与 `/data` 同级） |
+| `LOG_RETENTION_DAYS` | `7` | 文件日志保留天数，到期自动清理 |
 | `SERVERCHAN_SENDKEY`、`BARK_*`、`PUSHPLUS_*`、`WECOM_*`、`WXPUSHER_*` | — | 渠道种子（首次启动播种为实例） |
 
 完整渠道字段说明见 `.env.example`；页面内每个输入框也有提示。
@@ -78,13 +81,14 @@ Server 酱/PushPlus/企微/WxPusher 收 Markdown，Bark 收等价纯文本。接
 
 ## 持久化
 
-所有配置与状态都落在容器的 **`/data` 目录**，把一个宿主机文件夹映射进去即可完整持久化（docker-compose 已默认映射 `./data:/data`）：
+所有配置与状态都落在容器的 **`/data` 目录**，文件日志落在 **`/logs` 目录**（与 `/data` 同级），把宿主机文件夹映射进去即可完整持久化（docker-compose 已默认映射 `./data:/data` 与 `./logs:/logs`）：
 
 | 文件 | 内容 |
 | --- | --- |
 | `/data/config.json` | 全部 WebUI 配置：API Key、渠道实例（含密钥）、推送任务、控制台登录凭据 |
 | `/data/state.json` | 各 任务+商店 的数据指纹（去重） |
 | `/data/scheduler_state.json` | 上次执行结果与时间（重启后状态页仍可见） |
+| `/logs/rocom-push.log` | 文件日志（按天滚动，默认保留 7 天，`LOG_RETENTION_DAYS` 可调，到期自动清理） |
 
 用 `docker run` 时记得手动挂载：`-v /your/path/data:/data`。控制台登录会话存于内存，重启后需重新登录（有意为之）。
 

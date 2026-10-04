@@ -52,6 +52,14 @@ def _log_response(response: requests.Response, *_args, **_kwargs) -> None:
     )
 
 
+def redact_text(text: str) -> str:
+    """对任意文本（通常是异常消息）做脱敏：裸 URL 打码 + 响应体敏感字段打码。"""
+    if not text:
+        return text
+    text = re.sub(r"(https?://[^\s\"']+)", lambda m: _redact_url(m.group(1)), text)
+    return _BODY_REDACT.sub(r"\1****\2", text)
+
+
 def http_request(method: str, url: str, **kwargs) -> requests.Response:
     """带请求/响应日志的 HTTP 调用（渠道推送、接口拉取、token 获取统一走这里）。"""
     session = requests.Session()

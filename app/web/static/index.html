@@ -64,7 +64,7 @@
         <button id="log-refresh">刷新</button>
       </div>
     </div>
-    <p class="hint">显示最近 2000 条运行日志（采集级别由 LOG_LEVEL 环境变量决定，默认 INFO）。</p>
+    <p class="hint">内存缓冲显示最近 2000 条（采集级别由 LOG_LEVEL 决定，默认 INFO）；完整日志按天写入映射的 /logs 目录，默认保留 7 天自动清理。</p>
     <div id="log-list"></div>
   </section>
 </main>

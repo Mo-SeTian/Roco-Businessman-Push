@@ -1,6 +1,7 @@
 __pycache__/
 *.pyc
 data/
+logs/
 .env
 *.bak
 .invalid-*.bak

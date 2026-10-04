@@ -6,6 +6,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from . import bark, pushplus, serverchan, wecom, wxpusher
+from .common import redact_text
 from .manifest import CHANNEL_TYPES
 
 if TYPE_CHECKING:  # 延迟引用，避免与 app.models 循环导入
@@ -36,5 +37,6 @@ def send_instance(inst: "ChannelInstance", title: str, markdown: str, text: str)
         sender.send(inst.resolved_config(), title, markdown, text)
         return True, "OK"
     except Exception as exc:  # noqa: BLE001 单渠道失败不影响其他渠道
-        log.error("渠道 [%s(%s)] 推送失败：%s", inst.name, inst.type, exc)
-        return False, str(exc)[:200]
+        detail = redact_text(str(exc))[:200]
+        log.error("渠道 [%s(%s)] 推送失败：%s", inst.name, inst.type, detail)
+        return False, detail
