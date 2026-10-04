@@ -109,6 +109,7 @@ def create_app(store: AppConfigStore | None = None, scheduler: SchedulerService 
         return {
             "config": cfg.public_dict(),
             "channel_types": CHANNEL_TYPES,
+            "template_defaults": fmt.template_defaults(),
             "scheduler": dict(app_scheduler.state),
             "config_issue": app_store.last_issue,
             "auth_username": str(cfg.console_auth.get("username") or "admin"),

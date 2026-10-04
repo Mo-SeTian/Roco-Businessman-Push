@@ -265,39 +265,75 @@ async function testChannelDraft() {
 /* ---------- 设置 ---------- */
 
 const SETTING_FIELDS = [
-  ["rocom_api_key", "RoCom API Key（官网开发者控制台获取）", "password"],
-  ["shop_ids_text", "商店 ID（逗号分隔，留空 = 默认远行商店 3009）", "text"],
-  ["title_prefix", "推送标题前缀", "text"],
-  ["wait_ms", "接口同步等待毫秒数（wait_ms）", "number"],
-  ["http_timeout", "HTTP 超时（秒）", "number"],
-  ["max_retries", "202/网络错误重试次数", "number"],
-  ["retry_delay", "重试间隔（秒）", "number"],
-  ["log_retention_days", "文件日志保留天数（/logs 按天滚动，保存即生效）", "number"],
-  ["history_days", "调用历史保留天数（过期自动清理）", "number"],
+  ["rocom_api_key", "RoCom API Key（官网开发者控制台获取）", "password", "接口设置"],
+  ["shop_ids_text", "商店 ID（逗号分隔，留空 = 默认远行商店 3009）", "text", "接口设置"],
+  ["wait_ms", "接口同步等待毫秒数（wait_ms）", "number", "接口设置"],
+  ["http_timeout", "HTTP 超时（秒）", "number", "接口设置"],
+  ["max_retries", "202/网络错误重试次数", "number", "接口设置"],
+  ["retry_delay", "重试间隔（秒）", "number", "接口设置"],
+  ["log_retention_days", "文件日志保留天数（/logs 按天滚动，保存即生效）", "number", "数据保留"],
+  ["history_days", "调用历史保留天数（过期自动清理）", "number", "数据保留"],
+];
+
+const SETTING_GROUPS = [
+  ["接口设置", "🔑 对接洛克魔法书开放 API 的基础参数"],
+  ["推送行为", "📤 标题前缀与启动行为"],
+  ["通知模板", "📝 自定义推送内容，留空使用内置默认；正文中的 {goods_list} 即商品行模板逐件渲染的结果"],
+  ["数据保留", "🗄 文件日志与调用历史的保留天数，保存即生效"],
 ];
 
 function renderSettings() {
   const form = $("settings-form");
   if (form.contains(document.activeElement)) return;  // 正在填写时跳过自动刷新重渲染
+  const td = S.template_defaults || {};
+  const tv = cfg.title_template || td.title || "";
+  const bv = cfg.body_template || td.body || "";
+  const gv = cfg.goods_line_template || td.goods_line || "";
   const values = {
     rocom_api_key: "", shop_ids_text: (cfg.shop_ids || []).join(","),
     title_prefix: cfg.title_prefix, wait_ms: cfg.wait_ms, http_timeout: cfg.http_timeout,
     max_retries: cfg.max_retries, retry_delay: cfg.retry_delay,
     log_retention_days: cfg.log_retention_days, history_days: cfg.history_days,
   };
-  form.innerHTML = SETTING_FIELDS.map(([key, label, type]) => {
-    const ph = key === "rocom_api_key" && cfg.has_rocom_api_key ? "已配置（留空保持不变）" : "";
-    return `<label>${label}</label><input type="${type}" id="set-${key}" value="${esc(values[key])}" placeholder="${esc(ph)}">`;
-  }).join("") + `<div class="checkbox"><input type="checkbox" id="set-run-on-start" ${cfg.run_on_start ? "checked" : ""}>
-    启动容器时立即执行一轮（默认关闭；开启后每次重启都会先拉一次数据并按任务推送）</div>
-  <h2 style="margin-top:26px">通知模板</h2>
-  <p class="hint">三层模板均可自定义，<b>留空使用内置默认</b>。标题可用：{prefix} {shop_id} {refresh_count} {max_refresh_count} {date} {goods_count}；正文可用：{queried} {source} {date} {refresh_count} {max_refresh_count} {goods_count} {goods_list} {shop_id}；商品行可用：{name} {price} {limit} {window} {item_num} {goods_id}。正文中的 {goods_list} 即商品行模板逐件渲染的结果。</p>
-  <label>标题模板</label><textarea id="set-title-template" rows="2" placeholder="${esc("默认：{prefix}｜商店{shop_id}（第{refresh_count}/{max_refresh_count}次）")}">${esc(cfg.title_template || "")}</textarea>
-  <label>正文模板（Markdown）</label><textarea id="set-body-template" rows="7" placeholder="留空使用默认模板">${esc(cfg.body_template || "")}</textarea>
-  <label>商品行模板（每件商品一行）</label><textarea id="set-goods-line-template" rows="2" placeholder="${esc("默认：- **{name}**｜{price}｜限购 {limit}｜{window}")}">${esc(cfg.goods_line_template || "")}</textarea>
-  <div class="actions"><button id="tpl-preview">👁 用示例数据预览</button></div>
-  <pre id="tpl-preview-out" class="mono" hidden></pre>`;
+  let html = "";
+  for (const [group, desc] of SETTING_GROUPS) {
+    html += `<div class="group"><h3>${esc(group)}</h3><p class="hint">${esc(desc)}</p>`;
+    for (const [key, label, type, grp] of SETTING_FIELDS) {
+      if (grp !== group) continue;
+      const ph = key === "rocom_api_key" && cfg.has_rocom_api_key ? "已配置（留空保持不变）" : "";
+      html += `<label>${label}</label><input type="${type}" id="set-${key}" value="${esc(values[key])}" placeholder="${esc(ph)}">`;
+    }
+    if (group === "推送行为") {
+      html += `<label>推送标题前缀（模板中 {prefix} 占位符的值）</label>
+        <input type="text" id="set-title_prefix" value="${esc(cfg.title_prefix)}">
+        <div class="checkbox"><input type="checkbox" id="set-run-on-start" ${cfg.run_on_start ? "checked" : ""}>
+        启动容器时立即执行一轮（默认关闭；开启后每次重启都会先拉一次数据并按任务推送）</div>`;
+    }
+    if (group === "通知模板") {
+      html += `
+        <label>标题模板</label><textarea id="set-title-template" rows="2">${esc(tv)}</textarea>
+        <label>正文模板（Markdown）</label><textarea id="set-body-template" rows="8">${esc(bv)}</textarea>
+        <label>商品行模板（每件商品一行）</label><textarea id="set-goods-line-template" rows="2">${esc(gv)}</textarea>
+        <div class="actions" style="margin-top:12px">
+          <button id="tpl-preview">👁 用示例数据预览</button>
+          <button id="tpl-restore">↺ 还原默认模板</button>
+        </div>
+        <pre id="tpl-preview-out" class="mono" hidden></pre>`;
+    }
+    html += `</div>`;
+  }
+  form.innerHTML = html;
   $("tpl-preview").onclick = previewTemplate;
+  $("tpl-restore").onclick = restoreTemplate;
+}
+
+function restoreTemplate() {
+  const td = S.template_defaults || {};
+  if (!confirm("确定将三个模板还原为内置默认？\n当前编辑内容将被覆盖（还原后还需点击底部“保存设置”才会生效）。")) return;
+  $("set-title-template").value = td.title || "";
+  $("set-body-template").value = td.body || "";
+  $("set-goods-line-template").value = td.goods_line || "";
+  toast("已还原为默认模板，记得点击“保存设置”");
 }
 
 async function previewTemplate() {

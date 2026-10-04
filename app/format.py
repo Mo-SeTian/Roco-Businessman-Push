@@ -197,6 +197,15 @@ BODY_VARS = "{queried} {source} {date} {refresh_count} {max_refresh_count} {good
 GOODS_VARS = "{name} {price} {limit} {window} {item_num} {goods_id}"
 
 
+def template_defaults() -> dict:
+    """内置默认模板（供 WebUI 编辑框预填与还原）。"""
+    return {
+        "title": DEFAULT_TITLE_TEMPLATE,
+        "body": DEFAULT_BODY_TEMPLATE,
+        "goods_line": DEFAULT_GOODS_LINE_TEMPLATE,
+    }
+
+
 @dataclass
 class TemplateSettings:
     title_prefix: str = DEFAULT_TITLE_PREFIX
