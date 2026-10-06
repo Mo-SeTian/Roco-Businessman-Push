@@ -5,23 +5,36 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>登录 · 洛克王国远行商人推送</title>
 <style>
-  body{margin:0;font-family:system-ui,"Segoe UI","Microsoft YaHei",sans-serif;background:#f2f0ea;
-       display:flex;align-items:center;justify-content:center;height:100vh}
-  .card{background:#fff;border-radius:14px;padding:36px 40px;width:320px;box-shadow:0 8px 30px rgba(0,0,0,.08)}
-  h1{font-size:18px;margin:0 0 6px;text-align:center}
-  p.sub{font-size:12px;color:#888;margin:0 0 22px;text-align:center}
-  label{display:block;font-size:13px;color:#555;margin:12px 0 4px}
-  input{width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid #ddd;border-radius:8px;font-size:14px}
-  button{width:100%;margin-top:22px;padding:10px;border:0;border-radius:8px;background:#fa8c16;
-         color:#fff;font-size:15px;cursor:pointer}
-  button:hover{background:#e07f10}
-  .err{color:#d4380d;font-size:13px;margin-top:12px;text-align:center;min-height:18px}
+  :root{--amber:#D97706;--amber-deep:#92400E;--line:#F3E8CE;--fg:#292524;--muted:#78716C;--faint:#A8A29E}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Nunito","Segoe UI",system-ui,"Microsoft YaHei",sans-serif;
+       background:radial-gradient(900px 500px at 85% -10%,rgba(217,119,6,.12),transparent 60%),
+                  radial-gradient(700px 420px at -5% 110%,rgba(124,58,237,.06),transparent 55%),#FFFBEB;
+       display:flex;align-items:center;justify-content:center;height:100vh;color:var(--fg)}
+  .card{background:#fff;border:1.5px solid var(--line);border-radius:22px;padding:36px 38px 32px;width:330px;
+        box-shadow:0 12px 34px rgba(146,90,10,.12),0 2px 6px rgba(146,90,10,.06)}
+  .mark{width:52px;height:52px;border-radius:17px;background:linear-gradient(135deg,#F59E0B,#D97706);
+        display:grid;place-items:center;margin:0 auto 14px;transform:rotate(-4deg);
+        box-shadow:0 8px 20px rgba(217,119,6,.35)}
+  .mark svg{width:27px;height:27px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  h1{font-size:19px;font-weight:900;margin:0 0 4px;text-align:center;letter-spacing:.3px}
+  p.sub{font-size:12px;color:var(--faint);margin:0 0 20px;text-align:center;font-weight:700}
+  label{display:block;font-size:12.5px;font-weight:800;color:var(--muted);margin:14px 0 5px}
+  input{width:100%;padding:10px 14px;border:1.5px solid var(--line);border-radius:12px;font-size:14px;
+        font-family:inherit;transition:.15s;color:var(--fg)}
+  input:focus{outline:none;border-color:var(--amber);box-shadow:0 0 0 3.5px rgba(217,119,6,.14)}
+  button{width:100%;margin-top:22px;padding:11px;border:0;border-radius:99px;font-size:14.5px;font-weight:800;
+         font-family:inherit;cursor:pointer;color:#fff;background:linear-gradient(135deg,#F59E0B,#D97706);
+         box-shadow:0 6px 16px rgba(217,119,6,.32);transition:.15s}
+  button:hover{filter:brightness(1.06)}
+  .err{color:#DC2626;font-size:13px;margin-top:12px;text-align:center;min-height:18px;font-weight:700}
 </style>
 </head>
 <body>
 <div class="card">
-  <h1>洛克王国远行商人推送</h1>
-  <p class="sub">请登录控制台</p>
+  <div class="mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.2 15 9.5 4h5L15.8 15"/><path d="M4 15h16"/><path d="M4 18.5h16"/><path d="M9.5 11h5"/></svg></div>
+  <h1>远行商人推送</h1>
+  <p class="sub">ROCO MERCHANT PUSH · 请登录控制台</p>
   <label>用户名</label><input id="u" autocomplete="username">
   <label>密码</label><input id="p" type="password" autocomplete="current-password">
   <button onclick="doLogin()">登 录</button>

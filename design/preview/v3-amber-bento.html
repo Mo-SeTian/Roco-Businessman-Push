@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>方案 C · 暖琥珀市集 — 洛克王国远行商人推送</title>
+<style>
+:root{
+  --bg:#FFFBEB; --card:#FFFFFF; --line:#F3E8CE; --line-soft:#FAF3E0;
+  --fg:#292524; --muted:#78716C; --faint:#A8A29E;
+  --amber:#D97706; --amber-deep:#92400E; --amber-soft:#FEF3D9;
+  --purple:#7C3AED; --purple-soft:#F1E9FE;
+  --green:#16A34A; --green-soft:#E8F5EC;
+  --red:#DC2626; --red-soft:#FDECEC;
+  --radius:20px; --radius-sm:12px;
+  --shadow:0 6px 20px rgba(146,90,10,.07),0 1px 3px rgba(146,90,10,.05);
+  --mono:"Cascadia Code",Consolas,"Courier New",monospace;
+}
+*{box-sizing:border-box}
+html{-webkit-font-smoothing:antialiased}
+body{margin:0;background:
+     radial-gradient(900px 500px at 90% -8%,rgba(217,119,6,.09),transparent 60%),
+     radial-gradient(700px 420px at -6% 30%,rgba(124,58,237,.05),transparent 55%),
+     var(--bg);
+     color:var(--fg);font-size:14px;line-height:1.6;
+     font-family:"Nunito","Segoe UI",system-ui,"Microsoft YaHei",sans-serif}
+svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+button{font-family:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--amber);outline-offset:2px;border-radius:6px}
+
+/* ---------- 顶栏 ---------- */
+header{position:sticky;top:0;z-index:10;backdrop-filter:blur(10px);background:rgba(255,251,235,.85);
+       border-bottom:1px solid var(--line)}
+.header-in{max-width:1100px;margin:0 auto;padding:12px 28px 0;display:flex;align-items:center;gap:14px}
+.brand{display:flex;align-items:center;gap:11px}
+.brand .mark{width:40px;height:40px;border-radius:14px;background:linear-gradient(135deg,#F59E0B,#D97706);
+             display:grid;place-items:center;color:#fff;box-shadow:0 6px 16px rgba(217,119,6,.32);transform:rotate(-4deg)}
+.brand .mark svg{width:21px;height:21px}
+.brand b{font-size:16px;font-weight:900;letter-spacing:.2px}
+.brand small{font-size:11px;color:var(--faint);font-weight:700;display:block;margin-top:-2px}
+.preview-tag{margin-left:auto;font-size:11px;color:var(--amber-deep);border:1.5px dashed #E7C68F;
+             background:#FFF8E8;padding:4px 11px;border-radius:99px;letter-spacing:1px;font-weight:800}
+.btn-logout{border:0;background:transparent;color:var(--muted);font-size:13px;font-weight:700;display:inline-flex;gap:6px;
+            align-items:center;padding:8px 12px;border-radius:99px;transition:.15s}
+.btn-logout:hover{color:var(--amber-deep);background:var(--amber-soft)}
+
+nav{max-width:1100px;margin:0 auto;padding:10px 28px 12px;display:flex;gap:8px;flex-wrap:wrap}
+nav button{border:1.5px solid transparent;background:transparent;padding:8px 16px;font-size:13px;font-weight:700;
+           color:var(--muted);border-radius:99px;transition:.18s;display:inline-flex;gap:7px;align-items:center}
+nav button:hover{background:var(--amber-soft);color:var(--amber-deep)}
+nav button.on{background:var(--amber);color:#fff;box-shadow:0 4px 12px rgba(217,119,6,.3)}
+nav button .num{font-size:11px;opacity:.75;font-family:var(--mono)}
+
+main{max-width:1100px;margin:0 auto;padding:22px 28px 70px}
+section[hidden]{display:none}
+.row-head{display:flex;justify-content:space-between;align-items:center;margin:30px 0 12px}
+section>.row-head:first-child{margin-top:2px}
+h2{font-size:16px;margin:0;font-weight:900;display:flex;align-items:center;gap:9px}
+h2 svg{color:var(--amber)}
+.hint{font-size:13px;color:var(--muted);background:var(--card);border:1.5px dashed #EAD9AE;
+      border-radius:var(--radius-sm);padding:10px 15px;margin:0 0 6px}
+.hint b{color:var(--amber-deep)}
+
+/* ---------- 按钮 ---------- */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;border-radius:99px;font-size:13px;font-weight:800;
+     border:1.5px solid var(--line);background:var(--card);color:var(--fg);transition:.18s}
+.btn:hover{border-color:#E2C88F;transform:translateY(-1px);box-shadow:0 4px 12px rgba(146,90,10,.1)}
+.btn.primary{background:linear-gradient(135deg,#F59E0B,#D97706);border-color:transparent;color:#fff;
+             box-shadow:0 5px 14px rgba(217,119,6,.32)}
+.btn.primary:hover{filter:brightness(1.05)}
+.btn.danger{color:var(--red);border-color:#F3C9C9}
+.btn.danger:hover{background:var(--red-soft);border-color:#EDB4B4}
+.btn.sm{padding:5px 13px;font-size:12px}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--muted)}
+.btn.ghost:hover{background:var(--amber-soft)}
+
+/* ---------- 状态页 Bento ---------- */
+.bento{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:4px}
+.b{background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);padding:18px 20px;
+   box-shadow:var(--shadow);transition:.18s;position:relative;overflow:hidden}
+.b:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(146,90,10,.11)}
+.b .k{font-size:11.5px;font-weight:800;letter-spacing:1.5px;color:var(--faint);text-transform:uppercase}
+.b .v{font-size:24px;font-weight:900;margin-top:6px;font-family:var(--mono);letter-spacing:-.5px;line-height:1.2}
+.b .v small{font-size:13px;color:var(--faint);font-weight:700;font-family:inherit;margin-left:2px}
+.b .v.txt{font-family:inherit;font-size:16px;letter-spacing:0}
+.b .s{font-size:12px;color:var(--muted);margin-top:4px}
+.b.span2{grid-column:span 2}
+.b.span2 .v{font-size:38px}
+.b.hero-b{grid-column:span 2;background:linear-gradient(135deg,#F59E0B 0%,#EA7C0C 55%,#D95A0B 100%);
+          border-color:transparent;color:#fff}
+.b.hero-b::after{content:"";position:absolute;right:-46px;bottom:-56px;width:190px;height:190px;border-radius:50%;
+                 background:rgba(255,255,255,.14)}
+.b.hero-b .k{color:rgba(255,255,255,.85)}
+.b.hero-b .v{color:#fff}
+.b.hero-b .s{color:rgba(255,255,255,.88)}
+.b.hero-b .btn{background:#fff;border-color:#fff;color:var(--amber-deep);margin-top:12px}
+.b.hero-b .btn:hover{background:#FFF6E3;border-color:#FFF6E3}
+.b.hero-b .btn.ghost2{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.45);color:#fff}
+.b.hero-b .btn.ghost2:hover{background:rgba(255,255,255,.26);border-color:rgba(255,255,255,.45)}
+.b .deco{position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:11px;display:grid;place-items:center}
+.b .deco.amber{background:var(--amber-soft);color:var(--amber)}
+.b .deco.purple{background:var(--purple-soft);color:var(--purple)}
+.b .deco.green{background:var(--green-soft);color:var(--green)}
+.status-pill{display:inline-flex;align-items:center;gap:7px;font-size:15px;font-weight:900;color:var(--green)}
+.status-pill i{width:9px;height:9px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{50%{opacity:.3}}
+
+.card{background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:11px;color:var(--faint);font-weight:900;letter-spacing:1.4px;
+   padding:8px 12px;border-bottom:2px solid var(--line-soft);text-transform:uppercase}
+td{padding:11px 12px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+tr:last-child td{border-bottom:0}
+tbody tr{transition:.12s;border-radius:10px}
+tbody tr:hover{background:#FFFBEE}
+.mono{font-family:var(--mono);font-size:12.5px}
+.item{background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);padding:15px 19px;margin-top:11px;
+      display:flex;justify-content:space-between;gap:14px;align-items:center;flex-wrap:wrap;box-shadow:var(--shadow);transition:.18s}
+.item:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(146,90,10,.11)}
+.item .info{flex:1;min-width:230px}
+.item .title{font-weight:900;font-size:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.item .meta{font-size:12.5px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.item .meta span{display:inline-flex;align-items:center;gap:6px}
+.item .meta svg{color:var(--faint)}
+.item .ops{display:flex;gap:8px;flex-wrap:wrap}
+
+.tag{display:inline-flex;align-items:center;background:var(--amber-soft);border:1px solid #F3DCA8;color:var(--amber-deep);
+     border-radius:99px;padding:1.5px 10px;font-size:11px;font-weight:800}
+.tag.blue{background:#E3ECFE;border-color:#C6D8FA;color:#1D4ED8}
+.tag.purple{background:var(--purple-soft);border-color:#E0D2FB;color:var(--purple)}
+.tag.off{background:var(--line-soft);border-color:var(--line);color:var(--faint);font-weight:700}
+.ok2{color:var(--green)}.bad{color:var(--red)}
+.empty{border:1.5px dashed #EAD9AE;border-radius:var(--radius);padding:34px;text-align:center;color:var(--faint);
+       font-size:13px;margin-top:10px;background:rgba(255,255,255,.6)}
+
+/* ---------- 表单 ---------- */
+.group{background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);padding:20px 22px 22px;
+       margin-top:14px;box-shadow:var(--shadow)}
+.group>h3{margin:0 0 2px;font-size:14px;font-weight:900;display:flex;align-items:center;gap:9px}
+.group>h3 .gi{width:28px;height:28px;border-radius:9px;background:var(--amber-soft);color:var(--amber);
+              display:grid;place-items:center}
+.group .hint{margin:0 0 6px}
+label{display:block;font-size:12.5px;font-weight:800;color:var(--muted);margin:16px 0 5px}
+label b{color:var(--red);font-weight:900}
+input[type=text],input[type=password],input[type=number],select,textarea{
+  width:100%;padding:10px 14px;border:1.5px solid var(--line);border-radius:var(--radius-sm);font-size:13.5px;
+  background:var(--card);color:var(--fg);font-family:inherit;transition:.15s}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--amber);box-shadow:0 0 0 3.5px rgba(217,119,6,.14)}
+input::placeholder,textarea::placeholder{color:var(--faint)}
+input:disabled{background:var(--line-soft);color:var(--faint)}
+textarea{font-family:var(--mono);font-size:12.5px;line-height:1.7;resize:vertical}
+select{width:auto}
+.check{display:flex;align-items:center;gap:9px;margin-top:16px;font-size:13px;color:var(--fg)}
+.check input{accent-color:var(--amber);width:16px;height:16px}
+.checks{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.checks label{display:flex;align-items:center;gap:8px;margin:0;font-size:13px;color:var(--fg);font-weight:700}
+.tpl-actions{display:flex;gap:10px;margin-top:14px}
+.tpl-out{margin:14px 0 0;padding:15px 17px;background:#FFFBEE;border:1.5px solid var(--line);
+         border-radius:var(--radius-sm);font-family:var(--mono);font-size:12.5px;line-height:1.8;white-space:pre-wrap;color:var(--muted)}
+.tpl-out b{color:var(--amber-deep)}
+.actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+
+/* ---------- 历史 ---------- */
+.sel{padding:8px 13px;border:1.5px solid var(--line);border-radius:99px;background:var(--card);color:var(--fg);
+     font-size:12.5px;font-weight:700}
+.day h2{font-size:14.5px;margin:24px 0 8px}
+.day h2 .cnt{font-size:11px;color:var(--faint);font-family:var(--mono);font-weight:700;margin-left:8px}
+.slot-cell{white-space:nowrap;font-weight:900}
+.dim{color:var(--faint);font-weight:600;font-size:12px}
+.goods-line{padding:1px 0}
+
+/* ---------- 日志 ---------- */
+#log-list{max-height:64vh;overflow:auto;background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);
+          margin-top:10px;box-shadow:var(--shadow)}
+#log-list table{margin:0}
+#log-list td{line-height:1.6;padding:9px 12px}
+.lv-debug{color:var(--faint)}.lv-info{color:#2563EB}.lv-warning{color:#B45309}.lv-error{color:var(--red)}
+.lv-critical{color:var(--red);font-weight:900}
+#log-list summary{cursor:pointer;list-style:none;color:var(--muted)}
+#log-list summary::-webkit-details-marker{display:none}
+#log-list summary:hover{color:var(--amber)}
+#log-list pre{margin:6px 0 0;padding:10px 12px;background:#FFFBEE;border:1px solid var(--line);
+  border-radius:10px;white-space:pre-wrap;word-break:break-all;font-family:var(--mono);font-size:12px;color:var(--muted)}
+
+/* ---------- 响应式 ---------- */
+@media (max-width:900px){
+  .bento{grid-template-columns:repeat(2,1fr)}
+  .b.span2,.b.hero-b{grid-column:span 2}
+}
+@media (max-width:560px){
+  .bento{grid-template-columns:1fr}
+  .b.span2,.b.hero-b{grid-column:span 1}
+  .item .ops{width:100%;justify-content:flex-end}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-in">
+    <div class="brand">
+      <span class="mark" data-ic="hat"></span>
+      <span><b>远行商人推送</b><small>ROCO MERCHANT PUSH</small></span>
+    </div>
+    <span class="preview-tag">设计预览 · 方案 C</span>
+    <button class="btn-logout"><span data-ic="logout"></span>退出</button>
+  </div>
+  <nav id="tabs">
+    <button data-tab="status" class="on"><span data-ic="activity"></span>状态</button>
+    <button data-tab="tasks"><span data-ic="send"></span>推送任务<span class="num">2</span></button>
+    <button data-tab="channels"><span data-ic="bell"></span>推送渠道<span class="num">4</span></button>
+    <button data-tab="settings"><span data-ic="sliders"></span>全局设置</button>
+    <button data-tab="history"><span data-ic="history"></span>历史记录</button>
+    <button data-tab="logs"><span data-ic="file"></span>日志</button>
+  </nav>
+</header>
+
+<main>
+  <!-- ============ 状态 ============ -->
+  <section id="tab-status">
+    <div class="bento">
+      <div class="b hero-b">
+        <div class="k">NEXT RUN · 下次执行</div>
+        <div class="v">16:05 <small style="color:rgba(255,255,255,.85)">今天 10-06</small></div>
+        <div class="s">距开市还有 3 小时 52 分，两个任务将按时推送</div>
+        <div style="display:flex;gap:9px;flex-wrap:wrap">
+          <button class="btn sm ghost2"><span data-ic="refresh"></span>刷新状态</button>
+          <button class="btn sm"><span data-ic="play"></span>手动执行全部任务</button>
+        </div>
+      </div>
+      <div class="b">
+        <span class="deco green" data-ic="check"></span>
+        <div class="k">最近结果</div>
+        <div class="v txt ok2">4 / 5 成功</div>
+        <div class="s">1 个渠道超时失败</div>
+      </div>
+      <div class="b">
+        <span class="deco purple" data-ic="bell"></span>
+        <div class="k">启用任务 / 渠道</div>
+        <div class="v">2<small>/</small>4</div>
+        <div class="s">1 个任务已停用</div>
+      </div>
+      <div class="b">
+        <div class="k">上次执行</div>
+        <div class="v">12:05</div>
+        <div class="s">2026-10-06 · 21 分钟前</div>
+      </div>
+      <div class="b">
+        <span class="deco amber" data-ic="clock"></span>
+        <div class="k">当前状态</div>
+        <div class="v txt"><span class="status-pill"><i></i>运行中</span></div>
+        <div class="s">调度器正常 · 30s 自动刷新</div>
+      </div>
+      <div class="b">
+        <div class="k">今日商品数</div>
+        <div class="v">12 <small>件</small></div>
+        <div class="s">商店 3009 · 刷新 3/4</div>
+      </div>
+    </div>
+
+    <div class="row-head"><h2><span data-ic="list"></span>上次执行结果</h2></div>
+    <div class="card" style="padding:6px 8px">
+      <table>
+        <thead><tr><th>任务</th><th>商店</th><th>渠道结果</th></tr></thead>
+        <tbody>
+          <tr><td>早间推送 <span class="tag">去重</span></td><td class="mono">3009</td>
+              <td><span class="ok2">✔</span> Bark · 我的 iPhone<br><span class="ok2">✔</span> ServerChan · 微信通道</td></tr>
+          <tr><td>晚间汇总 <span class="tag blue">每次都推</span></td><td class="mono">3009</td>
+              <td><span class="ok2">✔</span> Bark · 我的 iPhone<br><span class="ok2">✔</span> Bark · iPad</td></tr>
+          <tr><td>全天候记录 <span class="tag off">无变化跳过</span></td><td class="mono">3009</td>
+              <td><span class="bad">✘</span> PushPlus · 备用 <span class="bad mono">HTTP 504 上游超时</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ 任务 ============ -->
+  <section id="tab-tasks" hidden>
+    <div class="row-head"><h2><span data-ic="send"></span>推送任务</h2>
+      <button class="btn primary"><span data-ic="plus"></span>新建任务</button></div>
+    <p class="hint">远行商人每天 <b>8:00 / 12:00 / 16:00 / 20:00</b> 刷新，默认任务在每次刷新后 5 分钟推送。每个任务可独立选择时间与渠道组合。</p>
+
+    <div class="item">
+      <div class="info">
+        <div class="title">早间推送 <span class="tag">去重</span></div>
+        <div class="meta"><span data-ic="clock"></span>08:05 · 12:05<span data-ic="bell"></span>Bark · 我的 iPhone、ServerChan · 微信通道</div>
+      </div>
+      <div class="ops">
+        <button class="btn sm"><span data-ic="play"></span>立即执行</button>
+        <button class="btn sm"><span data-ic="edit"></span>编辑</button>
+        <button class="btn sm danger"><span data-ic="trash"></span>删除</button>
+      </div>
+    </div>
+    <div class="item">
+      <div class="info">
+        <div class="title">晚间汇总 <span class="tag blue">每次都推</span></div>
+        <div class="meta"><span data-ic="clock"></span>16:05 · 20:05<span data-ic="bell"></span>Bark · 我的 iPhone、Bark · iPad</div>
+      </div>
+      <div class="ops">
+        <button class="btn sm"><span data-ic="play"></span>立即执行</button>
+        <button class="btn sm"><span data-ic="edit"></span>编辑</button>
+        <button class="btn sm danger"><span data-ic="trash"></span>删除</button>
+      </div>
+    </div>
+    <div class="item" style="opacity:.68">
+      <div class="info">
+        <div class="title">全天候记录 <span class="tag off">已停用</span></div>
+        <div class="meta"><span data-ic="clock"></span>08:05 · 12:05 · 16:05 · 20:05<span data-ic="bell"></span>WxPusher · 群机器人</div>
+      </div>
+      <div class="ops">
+        <button class="btn sm"><span data-ic="play"></span>立即执行</button>
+        <button class="btn sm"><span data-ic="edit"></span>编辑</button>
+        <button class="btn sm danger"><span data-ic="trash"></span>删除</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 渠道 ============ -->
+  <section id="tab-channels" hidden>
+    <div class="row-head"><h2><span data-ic="bell"></span>推送渠道</h2>
+      <button class="btn primary"><span data-ic="plus"></span>新建渠道</button></div>
+    <p class="hint">同一种渠道可以创建多个实例（例如两台设备的 Bark），在任务里自由勾选组合。</p>
+
+    <div class="item">
+      <div class="info">
+        <div class="title">Bark · 我的 iPhone <span class="tag purple">Bark</span></div>
+        <div class="meta">密钥已配置 · 自建服务器 https://api.day.app</div>
+      </div>
+      <div class="ops">
+        <button class="btn sm"><span data-ic="zap"></span>发送测试</button>
+        <button class="btn sm"><span data-ic="edit"></span>编辑</button>
+        <button class="btn sm danger"><span data-ic="trash"></span>删除</button>
+      </div>
+    </div>
+    <div class="item">
+      <div class="info">
+        <div class="title">Bark · iPad <span class="tag purple">Bark</span></div>
+        <div class="meta">密钥已配置</div>
+      </div>
+      <div class="ops">
+        <button class="btn sm"><span data-ic="zap"></span>发送测试</button>
+        <button class="btn sm"><span data-ic="edit"></span>编辑</button>
+        <button class="btn sm danger"><span data-ic="trash"></span>删除</button>
+      </div>
+    </div>
+    <div class="item">
+      <div class="info">
+        <div class="title">ServerChan · 微信通道 <span class="tag purple">Server 酱</span></div>
+        <div class="meta">密钥已配置</div>
+      </div>
+      <div class="ops">
+        <button class="btn sm"><span data-ic="zap"></span>发送测试</button>
+        <button class="btn sm"><span data-ic="edit"></span>编辑</button>
+        <button class="btn sm danger"><span data-ic="trash"></span>删除</button>
+      </div>
+    </div>
+    <div class="item" style="opacity:.68">
+      <div class="info">
+        <div class="title">WxPusher · 群机器人 <span class="tag purple">WxPusher</span> <span class="tag off">已停用</span></div>
+        <div class="meta">未填写配置</div>
+      </div>
+      <div class="ops">
+        <button class="btn sm"><span data-ic="zap"></span>发送测试</button>
+        <button class="btn sm"><span data-ic="edit"></span>编辑</button>
+        <button class="btn sm danger"><span data-ic="trash"></span>删除</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 设置 ============ -->
+  <section id="tab-settings" hidden>
+    <div class="row-head"><h2><span data-ic="sliders"></span>全局设置</h2></div>
+
+    <div class="group">
+      <h3><span class="gi" data-ic="key"></span>接口设置</h3>
+      <p class="hint">对接洛克魔法书开放 API 的基础参数</p>
+      <label>RoCom API Key <b>*</b>（密钥）</label>
+      <input type="password" placeholder="已配置（留空保持不变）">
+      <label>商店 ID（逗号分隔，留空 = 默认远行商店 3009）</label>
+      <input type="text" value="3009">
+      <label>接口同步等待毫秒数（wait_ms）</label>
+      <input type="number" value="8000">
+      <label>HTTP 超时（秒）</label>
+      <input type="number" value="30">
+      <label>202/网络错误重试次数</label>
+      <input type="number" value="3">
+      <label>重试间隔（秒）</label>
+      <input type="number" value="20">
+    </div>
+
+    <div class="group">
+      <h3><span class="gi" data-ic="send"></span>推送行为</h3>
+      <p class="hint">标题前缀与启动行为</p>
+      <label>推送标题前缀（模板中 {prefix} 占位符的值）</label>
+      <input type="text" value="远行商人">
+      <div class="check"><input type="checkbox">启动容器时立即执行一轮（默认关闭；开启后每次重启都会先拉一次数据并按任务推送）</div>
+    </div>
+
+    <div class="group">
+      <h3><span class="gi" data-ic="file"></span>通知模板</h3>
+      <p class="hint">模板已预填内置默认，可直接修改。{nl} 或 \n 表示换行；全天商品 {period} 显示为「全天」</p>
+      <label>标题模板</label>
+      <textarea rows="2">洛克王国远行商人（第{refresh_count}/{max_refresh_count}次）</textarea>
+      <label>正文模板（Markdown）</label>
+      <textarea rows="6">{goods_count}件商品：{goods_names}
+
+轮次：{refresh_count}/{max_refresh_count} · 剩余：{countdown}
+
+{goods_list}</textarea>
+      <label>商品行模板（每件商品一段）</label>
+      <textarea rows="4">{index}. {name}
+时段：{period}
+价格：{price}
+数量：{limit}
+合计：{total}
+{nl}</textarea>
+      <div class="tpl-actions">
+        <button class="btn"><span data-ic="eye"></span>用示例数据预览</button>
+        <button class="btn"><span data-ic="undo"></span>还原默认模板</button>
+      </div>
+      <pre class="tpl-out"><b>【标题】</b>洛克王国远行商人（第3/4次）
+
+<b>【Markdown 正文】</b>3件商品：咕噜铃、宠物经验饼干、格里芬之蛋
+
+轮次：3/4 · 剩余：3 小时 52 分
+
+1. 咕噜铃
+时段：全天
+价格：3,000 洛克贝
+数量：200
+合计：60.0万洛克贝
+
+2. 宠物经验饼干
+…</pre>
+    </div>
+
+    <div class="group">
+      <h3><span class="gi" data-ic="archive"></span>数据保留</h3>
+      <p class="hint">文件日志与调用历史的保留天数，保存即生效</p>
+      <label>文件日志保留天数（/logs 按天滚动）</label>
+      <input type="number" value="7">
+      <label>调用历史保留天数（过期自动清理）</label>
+      <input type="number" value="30">
+    </div>
+
+    <div class="actions">
+      <button class="btn primary"><span data-ic="check"></span>保存设置</button>
+      <button class="btn">取消</button>
+    </div>
+
+    <div class="group" style="margin-top:26px">
+      <h3><span class="gi" data-ic="user"></span>修改账号密码</h3>
+      <p class="hint">修改后其他已登录的会话将被踢出，需用新凭据重新登录</p>
+      <label>当前用户名</label><input type="text" value="admin" disabled>
+      <label>当前密码（验证身份）</label><input type="password" placeholder="••••••••">
+      <label>新用户名</label><input type="text" value="admin">
+      <label>新密码（至少 4 位）</label><input type="password">
+      <label>确认新密码</label><input type="password">
+      <div class="actions" style="margin-top:16px"><button class="btn primary"><span data-ic="check"></span>更新账号密码</button></div>
+    </div>
+  </section>
+
+  <!-- ============ 历史 ============ -->
+  <section id="tab-history" hidden>
+    <div class="row-head"><h2><span data-ic="history"></span>历史记录</h2>
+      <div style="display:flex;gap:8px">
+        <select class="sel"><option>最近 7 天</option><option selected>最近 14 天</option><option>最近 30 天</option></select>
+        <select class="sel"><option>商店 3009</option></select>
+        <button class="btn sm"><span data-ic="refresh"></span>刷新</button>
+      </div></div>
+    <p class="hint">每次成功调用接口都会按「商店 → 日期 → 档位」记录当次商品；错过或失败的档位显示为空。历史保留 <b>30 天</b>，存于 /data/history.json。</p>
+
+    <div class="day">
+      <h2>2026-10-06 <span class="cnt">今天 · 记录 2/4 档</span></h2>
+      <div class="card" style="padding:6px 8px">
+        <table>
+          <thead><tr><th style="width:120px">档位</th><th>商品明细</th><th style="width:90px">数量</th></tr></thead>
+          <tbody>
+            <tr><td class="slot-cell">08:05<div class="dim">08:05:12 · API</div></td>
+                <td><div class="goods-line">咕噜铃｜3,000洛克贝｜限购200｜全天</div><div class="goods-line">宠物经验饼干｜50洛克贝｜限购20｜全天</div><div class="goods-line">格里芬之蛋｜1,000洛克贝｜限购100｜16:00 开售</div></td>
+                <td class="slot-cell">3 件<div class="dim">刷新 1/4</div></td></tr>
+            <tr><td class="slot-cell">12:05<div class="dim">12:05:09 · API</div></td>
+                <td><div class="goods-line">火花卡｜800洛克贝｜限购50｜全天</div><div class="goods-line">高级宠物粮｜2,400洛克贝｜限购30｜12:00 开售</div></td>
+                <td class="slot-cell">2 件<div class="dim">刷新 2/4</div></td></tr>
+            <tr><td class="slot-cell">16:05</td><td class="dim">— 无数据（未调用）</td><td class="dim">—</td></tr>
+            <tr><td class="slot-cell">20:05</td><td class="dim">— 无数据（未调用）</td><td class="dim">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="day">
+      <h2>2026-10-05 <span class="cnt">昨天 · 记录 4/4 档</span></h2>
+      <div class="card" style="padding:6px 8px">
+        <table>
+          <thead><tr><th style="width:120px">档位</th><th>商品明细</th><th style="width:90px">数量</th></tr></thead>
+          <tbody>
+            <tr><td class="slot-cell">08:05<div class="dim">08:05:11 · 缓存</div></td>
+                <td><div class="goods-line">水滴卡｜600洛克贝｜限购80｜全天</div><div class="goods-line">变身药水·兔子｜1,500洛克贝｜限购10｜全天</div></td>
+                <td class="slot-cell">2 件<div class="dim">刷新 1/4</div></td></tr>
+            <tr><td class="slot-cell">20:05<div class="dim">20:05:08 · API</div></td>
+                <td><div class="goods-line">洛克贝礼包｜5,000洛克贝｜限购5｜20:00 开售</div></td>
+                <td class="slot-cell">1 件<div class="dim">刷新 4/4</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 日志 ============ -->
+  <section id="tab-logs" hidden>
+    <div class="row-head"><h2><span data-ic="file"></span>系统日志</h2>
+      <div style="display:flex;gap:8px">
+        <select class="sel"><option>DEBUG 及以上</option><option selected>INFO 及以上</option><option>WARNING 及以上</option><option>ERROR 及以上</option></select>
+        <button class="btn sm"><span data-ic="refresh"></span>刷新</button>
+      </div></div>
+    <p class="hint">内存缓冲显示最近 2000 条（采集级别由 LOG_LEVEL 决定）；完整日志按天写入 /logs，默认保留 7 天自动清理。</p>
+
+    <div id="log-list">
+      <table>
+        <thead><tr><th style="width:150px">时间</th><th style="width:80px">等级</th><th style="width:150px">来源</th><th>内容</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">10-06 12:05:09.412</td><td class="lv-info">INFO</td><td>scheduler</td><td>档位 2/4 开始执行，任务 2 个</td></tr>
+          <tr><td class="mono">10-06 12:05:10.877</td><td class="lv-info">INFO</td><td>channels.bark</td><td>Bark · 我的 iPhone 推送成功（387ms）</td></tr>
+          <tr><td class="mono">10-06 12:05:11.203</td><td class="lv-info">INFO</td><td>channels.serverchan</td><td>ServerChan · 微信通道推送成功（512ms）</td></tr>
+          <tr><td class="mono">10-06 12:05:11.530</td><td class="lv-warning">WARNING</td><td>channels.pushplus</td><td><details><summary>PushPlus · 备用 推送失败：HTTPSConnectionPool(host='www.pushplus.plus', port=443): Read timed out. (read timeout=30)…（展开全部 96 字）</summary><pre>PushPlus · 备用 推送失败：HTTPSConnectionPool(host='www.pushplus.plus', port=443): Read timed out. (read timeout=30)；已重试 3 次仍失败，本轮跳过该渠道</pre></details></td></tr>
+          <tr><td class="mono">10-06 12:05:11.531</td><td class="lv-error">ERROR</td><td>scheduler</td><td>任务「全天候记录」执行完成：1/1 渠道失败</td></tr>
+          <tr><td class="mono">10-06 12:05:11.548</td><td class="lv-info">INFO</td><td>web</td><td>状态页数据已更新，下次执行 16:05</td></tr>
+          <tr><td class="mono">10-06 11:00:02.110</td><td class="lv-debug">DEBUG</td><td>app.format</td><td>模板渲染完成：标题 22 字，正文 418 字，商品行 12 段</td></tr>
+          <tr><td class="mono">10-06 08:05:07.664</td><td class="lv-info">INFO</td><td>scheduler</td><td>去重生效：接口返回与上次一致，任务「早间推送」跳过推送</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script>
+/* ---------- 图标（Lucide 风格描边 SVG） ---------- */
+const ICONS = {
+  hat:'<path d="M8.2 15 9.5 4h5L15.8 15"/><path d="M4 15h16"/><path d="M4 18.5h16"/><path d="M9.5 11h5"/>',
+  activity:'<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
+  send:'<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
+  bell:'<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
+  sliders:'<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>',
+  history:'<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>',
+  file:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
+  logout:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
+  play:'<polygon points="6 3 20 12 6 21 6 3"/>',
+  plus:'<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+  refresh:'<polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>',
+  edit:'<path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>',
+  trash:'<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+  zap:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
+  eye:'<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
+  undo:'<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>',
+  check:'<polyline points="20 6 9 17 4 12"/>',
+  clock:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  list:'<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>',
+  key:'<path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/>',
+  archive:'<polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/>',
+  user:'<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+};
+document.querySelectorAll("[data-ic]").forEach(el=>{
+  const n = el.dataset.ic;
+  if (ICONS[n]) el.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[n]}</svg>`;
+});
+
+/* ---------- 标签切换 ---------- */
+document.querySelectorAll("#tabs button").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    const t = btn.dataset.tab;
+    document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b===btn));
+    document.querySelectorAll("main section").forEach(s=>s.hidden = s.id!=="tab-"+t);
+    history.replaceState(null,"","#"+t);
+  });
+});
+const initTab = location.hash.slice(1);
+if (document.querySelector(`#tabs button[data-tab="${initTab}"]`))
+  document.querySelector(`#tabs button[data-tab="${initTab}"]`).click();
+</script>
+</body>
+</html>

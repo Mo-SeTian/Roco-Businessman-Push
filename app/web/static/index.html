@@ -8,84 +8,125 @@
 </head>
 <body>
 <header>
-  <h1>🎩 洛克王国远行商人推送</h1>
-  <button id="logout" class="ghost">退出</button>
+  <div class="header-in">
+    <div class="brand">
+      <span class="mark" data-ic="hat"></span>
+      <span><b>远行商人推送</b><small>ROCO MERCHANT PUSH</small></span>
+    </div>
+    <button id="logout" class="btn-logout"><span data-ic="logout"></span>退出</button>
+  </div>
+  <nav id="tabs">
+    <button data-tab="status" class="on"><span data-ic="activity"></span>状态</button>
+    <button data-tab="tasks"><span data-ic="send"></span>推送任务<span class="num" id="nav-tasks-num"></span></button>
+    <button data-tab="channels"><span data-ic="bell"></span>推送渠道<span class="num" id="nav-ch-num"></span></button>
+    <button data-tab="settings"><span data-ic="sliders"></span>全局设置</button>
+    <button data-tab="history"><span data-ic="history"></span>历史记录</button>
+    <button data-tab="logs"><span data-ic="file"></span>日志</button>
+  </nav>
 </header>
-<div id="issue" class="issue" hidden></div>
-<nav id="tabs">
-  <button data-tab="status" class="on">状态</button>
-  <button data-tab="tasks">推送任务</button>
-  <button data-tab="channels">推送渠道</button>
-  <button data-tab="settings">全局设置</button>
-  <button data-tab="history">历史记录</button>
-  <button data-tab="logs">日志</button>
-</nav>
 <main>
+  <div id="issue" class="issue" hidden></div>
+
+  <!-- ============ 状态 ============ -->
   <section id="tab-status">
-    <div class="cards" id="status-cards"></div>
-    <div class="row-head"><h2>上次执行结果</h2><button id="run-all">▶ 手动执行全部任务</button></div>
-    <div id="last-results"></div>
+    <div class="bento">
+      <div class="b hero-b">
+        <div class="k">NEXT RUN · 下次执行</div>
+        <div class="v" id="hero-next">—</div>
+        <div class="s" id="hero-sub">正在获取调度状态…</div>
+        <div class="hero-actions">
+          <button id="refresh-status" class="btn sm ghost2"><span data-ic="refresh"></span>刷新状态</button>
+          <button id="run-all" class="btn sm"><span data-ic="play"></span>手动执行全部任务</button>
+        </div>
+      </div>
+      <div id="status-cards"></div>
+    </div>
+
+    <div class="row-head"><h2><span data-ic="list"></span>上次执行结果</h2></div>
+    <div class="card table-card"><div id="last-results"></div></div>
   </section>
 
+  <!-- ============ 任务 ============ -->
   <section id="tab-tasks" hidden>
-    <div class="row-head"><h2>推送任务</h2><button id="task-add">＋ 新建任务</button></div>
+    <div class="row-head">
+      <h2><span data-ic="send"></span>推送任务</h2>
+      <button id="task-add" class="btn primary"><span data-ic="plus"></span>新建任务</button>
+    </div>
     <p class="hint">远行商人每天 <b>8:00 / 12:00 / 16:00 / 20:00</b> 刷新，默认任务在每次刷新后 5 分钟推送。每个任务可独立选择时间与渠道组合。</p>
     <div id="task-list"></div>
     <div id="task-editor" class="editor" hidden></div>
   </section>
 
+  <!-- ============ 渠道 ============ -->
   <section id="tab-channels" hidden>
-    <div class="row-head"><h2>推送渠道</h2><button id="ch-add">＋ 新建渠道</button></div>
+    <div class="row-head">
+      <h2><span data-ic="bell"></span>推送渠道</h2>
+      <button id="ch-add" class="btn primary"><span data-ic="plus"></span>新建渠道</button>
+    </div>
     <p class="hint">同一种渠道可以创建多个实例（例如两台设备的 Bark），在任务里自由勾选组合。</p>
     <div id="channel-list"></div>
     <div id="channel-editor" class="editor" hidden></div>
   </section>
 
+  <!-- ============ 设置 ============ -->
   <section id="tab-settings" hidden>
-    <h2>全局设置</h2>
+    <div class="row-head"><h2><span data-ic="sliders"></span>全局设置</h2></div>
     <div class="form" id="settings-form"></div>
-    <button id="settings-save" class="primary">保存设置</button>
+    <div class="actions"><button id="settings-save" class="btn primary"><span data-ic="check"></span>保存设置</button></div>
 
-    <h2 style="margin-top:30px">修改账号密码</h2>
+    <div class="row-head" style="margin-top:34px"><h2><span data-ic="user"></span>修改账号密码</h2></div>
     <p class="hint">修改后其他已登录的会话将被踢出，需用新凭据重新登录。</p>
     <div class="form" id="account-form"></div>
-    <button id="account-save" class="primary">更新账号密码</button>
+    <div class="actions"><button id="account-save" class="btn primary"><span data-ic="check"></span>更新账号密码</button></div>
   </section>
 
+  <!-- ============ 历史 ============ -->
   <section id="tab-history" hidden>
     <div class="row-head">
-      <h2>历史记录</h2>
-      <div class="actions" style="margin:0">
+      <h2><span data-ic="history"></span>历史记录</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
         <select id="his-days" class="sel">
           <option value="7">最近 7 天</option>
           <option value="14" selected>最近 14 天</option>
           <option value="30">最近 30 天</option>
         </select>
         <select id="his-shop" class="sel" hidden></select>
-        <button id="his-refresh">刷新</button>
+        <button id="his-refresh" class="btn sm"><span data-ic="refresh"></span>刷新</button>
       </div>
     </div>
     <p class="hint">每次成功调用接口都会按「商店 → 日期 → 档位」记录当次商品；错过或失败的档位显示为空。历史保留 <b>HISTORY_DAYS</b>（默认 30 天），存于 /data/history.json。</p>
     <div id="history-list"></div>
   </section>
 
+  <!-- ============ 日志 ============ -->
   <section id="tab-logs" hidden>
     <div class="row-head">
-      <h2>系统日志</h2>
-      <div class="actions" style="margin:0">
+      <h2><span data-ic="file"></span>系统日志</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
         <select id="log-level" class="sel">
           <option value="DEBUG">DEBUG 及以上</option>
           <option value="INFO" selected>INFO 及以上</option>
           <option value="WARNING">WARNING 及以上</option>
           <option value="ERROR">ERROR 及以上</option>
         </select>
-        <button id="log-refresh">刷新</button>
+        <button id="log-refresh" class="btn sm"><span data-ic="refresh"></span>刷新</button>
       </div>
     </div>
     <p class="hint">内存缓冲显示最近 2000 条（采集级别由 LOG_LEVEL 决定，默认 INFO）；完整日志按天写入映射的 /logs 目录，默认保留 7 天自动清理。</p>
     <div id="log-list"></div>
   </section>
 </main>
+
+<div id="confirm-overlay" hidden>
+  <div class="confirm-box" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title">
+    <h3 id="confirm-title">请确认</h3>
+    <p id="confirm-msg"></p>
+    <div class="actions" style="margin-top:16px">
+      <button id="confirm-ok" class="btn primary">确定</button>
+      <button id="confirm-cancel" class="btn">取消</button>
+    </div>
+  </div>
+</div>
 <div id="toast" hidden></div>
 <script src="/static/app.js"></script>
 </body>

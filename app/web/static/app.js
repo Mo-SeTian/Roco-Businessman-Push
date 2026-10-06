@@ -9,6 +9,52 @@ let editingChannelId = null;
 const $ = (id) => document.getElementById(id);
 const esc = (t) => String(t ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
+/* ---------- 图标（Lucide 风格描边 SVG） ---------- */
+const ICONS = {
+  hat:'<path d="M8.2 15 9.5 4h5L15.8 15"/><path d="M4 15h16"/><path d="M4 18.5h16"/><path d="M9.5 11h5"/>',
+  activity:'<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
+  send:'<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
+  bell:'<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
+  sliders:'<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>',
+  history:'<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>',
+  file:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
+  logout:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
+  play:'<polygon points="6 3 20 12 6 21 6 3"/>',
+  plus:'<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+  refresh:'<polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>',
+  edit:'<path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>',
+  trash:'<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+  zap:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
+  eye:'<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
+  undo:'<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>',
+  check:'<polyline points="20 6 9 17 4 12"/>',
+  clock:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  list:'<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>',
+  key:'<path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/>',
+  archive:'<polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/>',
+  user:'<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+};
+const ic = (name) => ICONS[name] ? `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>` : "";
+document.querySelectorAll("[data-ic]").forEach(el => { el.innerHTML = ic(el.dataset.ic); });
+
+const pad2 = (n) => String(n).padStart(2, "0");
+function parseLocal(v) {  // "2026-10-06 16:05" / ISO 时间 → 本地 Date（后端用空格分隔，Safari 不能直接 new Date）
+  const m = String(v || "").match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+  return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) : null;
+}
+
+/* ---------- 确认弹窗（替代原生 confirm） ---------- */
+function confirmBox(msg, onOk, { danger = false, okText = "确定" } = {}) {
+  const ov = $("confirm-overlay");
+  $("confirm-msg").textContent = msg;
+  const ok = $("confirm-ok");
+  ok.textContent = okText;
+  ok.className = danger ? "btn danger" : "btn primary";
+  ok.onclick = () => { ov.hidden = true; onOk(); };
+  ov.hidden = false;
+  $("confirm-cancel").focus();
+}
+
 function toast(msg, ms = 2600) {
   const el = $("toast");
   el.textContent = msg; el.hidden = false;
@@ -35,27 +81,71 @@ async function refresh(silent = false) {
   if (!silent) toast("已刷新");
 }
 
-function renderAll() { renderStatus(); renderTasks(); renderChannels(); renderSettings(); renderAccount(); }
+function renderAll() {
+  renderStatus(); renderTasks(); renderChannels(); renderSettings(); renderAccount();
+  $("nav-tasks-num").textContent = cfg.tasks.filter(t => t.enabled).length || "";
+  $("nav-ch-num").textContent = cfg.channels.filter(c => c.enabled).length || "";
+}
 
 /* ---------- 状态 ---------- */
 
 function renderStatus() {
   const s = S.scheduler;
-  const fmt = (v) => v ? String(v).replace("T", " ") : "—";
-  $("status-cards").innerHTML = [
-    ["下次执行", fmt(s.next_run_at)],
-    ["上次执行", fmt(s.last_fire_at)],
-    ["当前状态", esc(s.in_progress ? "执行中…" : (s.running ? "运行中" : "已停止"))],
-    ["结果", esc(s.last_message)],
-  ].map(([k, v]) => `<div class="card"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
+  const nowBase = parseLocal(S.now) || new Date();
+  const next = parseLocal(s.next_run_at);
 
+  // Hero：下次执行 + 客户端倒计时
+  if (s.in_progress) {
+    $("hero-next").textContent = "执行中…";
+    $("hero-sub").textContent = s.last_message || "正在拉取数据并推送";
+  } else if (next && s.running) {
+    $("hero-next").innerHTML = `${pad2(next.getHours())}:${pad2(next.getMinutes())} <small>${next.getMonth() + 1}-${next.getDate()}</small>`;
+    const diffMin = Math.round((next - nowBase) / 60000);
+    if (diffMin > 0) {
+      const h = Math.floor(diffMin / 60), m = diffMin % 60;
+      $("hero-sub").innerHTML = `距下次执行还有 <b>${h > 0 ? h + " 小时 " : ""}${m} 分钟</b>，启用任务将按时推送`;
+    } else {
+      $("hero-sub").textContent = "即将执行…";
+    }
+  } else if (!s.running) {
+    $("hero-next").textContent = "已停止";
+    $("hero-sub").textContent = s.last_message || "调度器未运行";
+  } else {
+    $("hero-next").textContent = "—";
+    $("hero-sub").textContent = s.last_message || "暂无调度计划";
+  }
+
+  // KPI 卡
+  const last = parseLocal(s.last_fire_at);
+  const lastStr = last ? `${pad2(last.getHours())}:${pad2(last.getMinutes())}` : "—";
+  const lastSub = last ? `${last.getFullYear()}-${pad2(last.getMonth() + 1)}-${pad2(last.getDate())}` : "尚未执行";
+  const statePill = s.in_progress
+    ? '<span class="status-pill busy"><i></i>执行中</span>'
+    : s.running ? '<span class="status-pill"><i></i>运行中</span>' : '<span class="status-pill stopped"><i></i>已停止</span>';
+  const okN = (s.last_results || []).reduce((n, e) => n + (e.channels || []).filter(c => c.ok).length, 0);
+  const badN = (s.last_results || []).reduce((n, e) => n + (e.channels || []).filter(c => !c.ok).length, 0);
+  const resultV = okN + badN
+    ? `<span class="${badN ? "txt-warn" : "ok2"}">${okN} / ${okN + badN} 成功</span>` : '<span class="dim">—</span>';
+  const enTasks = cfg.tasks.filter(t => t.enabled).length;
+  const enCh = cfg.channels.filter(c => c.enabled).length;
+  const offTasks = cfg.tasks.length - enTasks;
+  $("status-cards").innerHTML = [
+    ["上次执行", lastStr, lastSub, "clock", "amber"],
+    ["当前状态", statePill, s.running ? "调度器正常 · 30s 自动刷新" : "调度器未运行", "activity", "purple"],
+    ["启用任务 / 渠道", `${enTasks}<small>/</small>${enCh}`, offTasks ? `${offTasks} 个任务已停用` : "全部任务已启用", "send", "purple"],
+    ["最近结果", resultV, esc(s.last_message || "—"), "check", "green"],
+  ].map(([k, v, sub, icon, color]) => `
+    <div class="b"><span class="deco ${color}">${ic(icon)}</span>
+      <div class="k">${k}</div><div class="v txt">${v}</div><div class="s">${sub}</div></div>`).join("");
+
+  // 上次执行结果表
   const rows = (s.last_results || []);
   $("last-results").innerHTML = rows.length ? `<table>
     <tr><th>任务</th><th>商店</th><th>渠道结果</th></tr>` + rows.map(e => `<tr>
       <td>${esc(e.task)}${e.skipped ? ' <span class="tag off">无变化跳过</span>' : ""}</td>
-      <td>${esc(e.shop)}</td>
-      <td>${e.channels.map(c => `<span class="${c.ok ? "ok" : "bad"}">${c.ok ? "✔" : "✘"}</span> ${esc(c.channel)}` +
-        (c.ok ? "" : ` <span class="bad">${esc(c.detail)}</span>`)).join("<br>") || "—"}</td>
+      <td class="mono">${esc(e.shop)}</td>
+      <td>${e.channels.map(c => `<span class="${c.ok ? "ok2" : "bad"}">${c.ok ? "✔" : "✘"}</span> ${esc(c.channel)}` +
+        (c.ok ? "" : ` <span class="bad mono">${esc(c.detail)}</span>`)).join("<br>") || "—"}</td>
     </tr>`).join("") + "</table>"
     : `<div class="empty">还没有执行记录</div>`;
 }
@@ -69,13 +159,14 @@ function renderTasks() {
     return `<div class="item">
       <div class="info">
         <div class="title">${esc(t.name)} ${t.enabled ? "" : '<span class="tag off">已停用</span>'}
-          ${t.only_on_change ? '<span class="tag">去重</span>' : '<span class="tag">每次都推</span>'}</div>
-        <div class="meta">⏰ ${t.times.join("、")} ｜ 📤 ${chNames.length ? esc(chNames.join("、")) : "未选渠道"}</div>
+          ${t.only_on_change ? '<span class="tag">去重</span>' : '<span class="tag blue">每次都推</span>'}</div>
+        <div class="meta"><span>${ic("clock")}${esc(t.times.join(" · "))}</span>
+          <span>${ic("bell")}${chNames.length ? esc(chNames.join("、")) : "未选渠道"}</span></div>
       </div>
-      <div class="actions" style="margin:0">
-        <button onclick="runTask('${t.id}')">▶ 立即执行</button>
-        <button onclick="editTask('${t.id}')">编辑</button>
-        <button class="danger" onclick="delTask('${t.id}')">删除</button>
+      <div class="ops">
+        <button class="btn sm" onclick="runTask('${t.id}')">${ic("play")}立即执行</button>
+        <button class="btn sm" onclick="editTask('${t.id}')">${ic("edit")}编辑</button>
+        <button class="btn sm danger" onclick="delTask('${t.id}')">${ic("trash")}删除</button>
       </div>
     </div>`;
   }).join("") : `<div class="empty">还没有任务，点右上角「新建任务」</div>`;
@@ -86,21 +177,21 @@ function editTask(id) {
   const t = id ? cfg.tasks.find(x => x.id === id) : { name: "", times: ["08:05", "12:05", "16:05", "20:05"], channel_ids: [], enabled: true, only_on_change: true };
   if (!cfg.channels.length) { toast("请先在「推送渠道」里至少创建一个渠道"); return; }
   $("task-editor").innerHTML = `
-    <h2>${id ? "编辑任务" : "新建任务"}</h2>
+    <h2>${ic("send")}${id ? "编辑任务" : "新建任务"}</h2>
     <label>任务名称</label><input type="text" id="te-name" value="${esc(t.name)}" placeholder="例如：早间推送">
     <label>触发时间（HH:MM，逗号分隔，可多个）</label>
     <input type="text" id="te-times" value="${esc(t.times.join(","))}">
     <label>推送到哪些渠道</label>
     <div class="checks">${cfg.channels.map(c => `
       <label><input type="checkbox" class="ch-check" value="${c.id}" ${t.channel_ids.includes(c.id) ? "checked" : ""}>
-        ${esc(c.name)} <span class="tag">${esc(S.channel_types[c.type]?.label || c.type)}</span></label>`).join("")}
+        ${esc(c.name)} <span class="tag purple">${esc(S.channel_types[c.type]?.label || c.type)}</span></label>`).join("")}
     </div>
     <div class="checkbox"><input type="checkbox" id="te-ooc" ${t.only_on_change ? "checked" : ""}>
       去重：接口返回与上次完全一致时跳过推送（默认每次都推）</div>
     <div class="checkbox"><input type="checkbox" id="te-en" ${t.enabled ? "checked" : ""}>启用该任务</div>
     <div class="actions">
-      <button class="primary" onclick="saveTask()">保存</button>
-      <button onclick="$('task-editor').hidden=true">取消</button>
+      <button class="btn primary" onclick="saveTask()">${ic("check")}保存</button>
+      <button class="btn" onclick="$('task-editor').hidden=true">取消</button>
     </div>`;
   $("task-editor").hidden = false;
   window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
@@ -124,10 +215,11 @@ async function saveTask() {
     toast("任务已保存");
   } catch (e) { toast("保存失败：" + e.message, 4000); }
 }
-async function delTask(id) {
-  if (!confirm("确定删除该任务？")) return;
-  try { await api("/api/config", { method: "POST", body: buildPayload(null, "task-del", id) }); await refresh(true); toast("已删除"); }
-  catch (e) { toast("删除失败：" + e.message, 4000); }
+function delTask(id) {
+  confirmBox("确定删除该任务？删除后不可恢复。", async () => {
+    try { await api("/api/config", { method: "POST", body: buildPayload(null, "task-del", id) }); await refresh(true); toast("已删除"); }
+    catch (e) { toast("删除失败：" + e.message, 4000); }
+  }, { danger: true, okText: "删除" });
 }
 
 async function runTask(id) {
@@ -146,14 +238,14 @@ function renderChannels() {
     return `
     <div class="item">
       <div class="info">
-        <div class="title">${esc(c.name)} <span class="tag">${esc(S.channel_types[c.type]?.label || c.type)}</span>
+        <div class="title">${esc(c.name)} <span class="tag purple">${esc(S.channel_types[c.type]?.label || c.type)}</span>
           ${c.enabled ? "" : '<span class="tag off">已停用</span>'}</div>
         <div class="meta">${meta}</div>
       </div>
-      <div class="actions" style="margin:0">
-        <button onclick="testChannel('${c.id}')">发送测试</button>
-        <button onclick="editChannel('${c.id}')">编辑</button>
-        <button class="danger" onclick="delChannel('${c.id}')">删除</button>
+      <div class="ops">
+        <button class="btn sm" onclick="testChannel('${c.id}')">${ic("zap")}发送测试</button>
+        <button class="btn sm" onclick="editChannel('${c.id}')">${ic("edit")}编辑</button>
+        <button class="btn sm danger" onclick="delChannel('${c.id}')">${ic("trash")}删除</button>
       </div>
     </div>`;
   }).join("") : `<div class="empty">还没有渠道实例，点右上角「新建渠道」</div>`;
@@ -209,9 +301,9 @@ function editChannel(id) {
     <div id="ce-fields">${channelFieldsHTML(type, c ? c.config : {})}</div>
     <div class="checkbox"><input type="checkbox" id="ce-en" ${!c || c.enabled ? "checked" : ""}>启用该渠道</div>
     <div class="actions">
-      <button id="ce-test" onclick="testChannelDraft()">发送测试</button>
-      <button class="primary" onclick="saveChannel()">保存</button>
-      <button onclick="$('channel-editor').hidden=true">取消</button>
+      <button id="ce-test" class="btn" onclick="testChannelDraft()">${ic("zap")}发送测试</button>
+      <button class="btn primary" onclick="saveChannel()">${ic("check")}保存</button>
+      <button class="btn" onclick="$('channel-editor').hidden=true">取消</button>
     </div>`;
   $("channel-editor").hidden = false;
   window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
@@ -241,10 +333,11 @@ async function saveChannel() {
   } catch (e) { toast("保存失败：" + e.message, 4000); }
 }
 
-async function delChannel(id) {
-  if (!confirm("删除后，引用它的任务将推送失败，确定？")) return;
-  try { await api("/api/config", { method: "POST", body: buildPayload(null, "ch-del", id) }); await refresh(true); toast("已删除"); }
-  catch (e) { toast("删除失败：" + e.message, 4000); }
+function delChannel(id) {
+  confirmBox("确定删除该渠道？删除后，引用它的任务将推送失败。", async () => {
+    try { await api("/api/config", { method: "POST", body: buildPayload(null, "ch-del", id) }); await refresh(true); toast("已删除"); }
+    catch (e) { toast("删除失败：" + e.message, 4000); }
+  }, { danger: true, okText: "删除" });
 }
 
 async function testChannel(id) {
@@ -276,10 +369,10 @@ const SETTING_FIELDS = [
 ];
 
 const SETTING_GROUPS = [
-  ["接口设置", "🔑 对接洛克魔法书开放 API 的基础参数"],
-  ["推送行为", "📤 标题前缀与启动行为"],
-  ["通知模板", "📝 模板已预填内置默认，可直接修改。标题：{prefix} {shop_id} {refresh_count} {max_refresh_count}；正文：{goods_count} {goods_names} {countdown} {goods_list} 等；商品条目：{index} {name} {period} {price} {limit} {total} 等；{nl} 或 \\n 表示换行（默认模板末尾的 {nl} 让每件商品之间空一行）；全天商品 {period} 显示为「全天」"],
-  ["数据保留", "🗄 文件日志与调用历史的保留天数，保存即生效"],
+  ["接口设置", "对接洛克魔法书开放 API 的基础参数", "key"],
+  ["推送行为", "标题前缀与启动行为", "send"],
+  ["通知模板", "模板已预填内置默认，可直接修改。标题：{prefix} {shop_id} {refresh_count} {max_refresh_count}；正文：{goods_count} {goods_names} {countdown} {goods_list} 等；商品条目：{index} {name} {period} {price} {limit} {total} 等；{nl} 或 \\n 表示换行（默认模板末尾的 {nl} 让每件商品之间空一行）；全天商品 {period} 显示为「全天」", "file"],
+  ["数据保留", "文件日志与调用历史的保留天数，保存即生效", "archive"],
 ];
 
 function renderSettings() {
@@ -296,8 +389,8 @@ function renderSettings() {
     log_retention_days: cfg.log_retention_days, history_days: cfg.history_days,
   };
   let html = "";
-  for (const [group, desc] of SETTING_GROUPS) {
-    html += `<div class="group"><h3>${esc(group)}</h3><p class="hint">${esc(desc)}</p>`;
+  for (const [group, desc, icon] of SETTING_GROUPS) {
+    html += `<div class="group"><h3><span class="gi">${ic(icon)}</span>${esc(group)}</h3><p class="hint">${esc(desc)}</p>`;
     for (const [key, label, type, grp] of SETTING_FIELDS) {
       if (grp !== group) continue;
       const ph = key === "rocom_api_key" && cfg.has_rocom_api_key ? "已配置（留空保持不变）" : "";
@@ -314,11 +407,11 @@ function renderSettings() {
         <label>标题模板</label><textarea id="set-title-template" rows="2">${esc(tv)}</textarea>
         <label>正文模板（Markdown）</label><textarea id="set-body-template" rows="8">${esc(bv)}</textarea>
         <label>商品行模板（每件商品一行）</label><textarea id="set-goods-line-template" rows="2">${esc(gv)}</textarea>
-        <div class="actions" style="margin-top:12px">
-          <button id="tpl-preview">👁 用示例数据预览</button>
-          <button id="tpl-restore">↺ 还原默认模板</button>
+        <div class="tpl-actions">
+          <button id="tpl-preview" class="btn">${ic("eye")}用示例数据预览</button>
+          <button id="tpl-restore" class="btn">${ic("undo")}还原默认模板</button>
         </div>
-        <pre id="tpl-preview-out" class="mono" hidden></pre>`;
+        <pre id="tpl-preview-out" class="tpl-out" hidden></pre>`;
     }
     html += `</div>`;
   }
@@ -329,11 +422,12 @@ function renderSettings() {
 
 function restoreTemplate() {
   const td = S.template_defaults || {};
-  if (!confirm("确定将三个模板还原为内置默认？\n当前编辑内容将被覆盖（还原后还需点击底部“保存设置”才会生效）。")) return;
-  $("set-title-template").value = td.title || "";
-  $("set-body-template").value = td.body || "";
-  $("set-goods-line-template").value = td.goods_line || "";
-  toast("已还原为默认模板，记得点击“保存设置”");
+  confirmBox("确定将三个模板还原为内置默认？\n当前编辑内容将被覆盖（还原后还需点击底部「保存设置」才会生效）。", () => {
+    $("set-title-template").value = td.title || "";
+    $("set-body-template").value = td.body || "";
+    $("set-goods-line-template").value = td.goods_line || "";
+    toast("已还原为默认模板，记得点击「保存设置」");
+  }, { danger: true, okText: "还原" });
 }
 
 async function previewTemplate() {
@@ -458,8 +552,9 @@ async function refreshHistory() {
       return `<tr><td class="slot-cell">${slot}<div class="dim" style="font-weight:400">${esc(e.queried || "")}${e.source ? " · " + esc(e.source) : ""}</div></td>
         <td>${goods}</td><td class="slot-cell">${e.count ?? 0} 件${e.refresh ? `<div class="dim" style="font-weight:400">刷新 ${esc(e.refresh)}</div>` : ""}</td></tr>`;
     }).join("");
-    return `<h2 style="margin-top:16px">${esc(day)}</h2>
-      <table><tr><th>档位</th><th>商品明细</th><th>数量</th></tr>${rows}</table>`;
+    const filled = slots.filter(slot => (byDay[day] || {})[slot]).length;
+    return `<div class="day"><h2>${esc(day)}<span class="cnt">记录 ${filled}/${slots.length} 档</span></h2>
+      <div class="card table-card"><table><tr><th>档位</th><th>商品明细</th><th>数量</th></tr>${rows}</table></div></div>`;
   }).join("") : `<div class="empty">还没有历史数据——每次成功调用接口后会自动记录（每档一条）</div>`;
 }
 
@@ -482,6 +577,11 @@ $("tabs").addEventListener("click", (e) => {
   activateTab(btn.dataset.tab);
 });
 $("logout").onclick = async () => { await fetch("/api/logout", { method: "POST" }); location.href = "/login"; };
+$("refresh-status").onclick = () => refresh().catch(e => toast(e.message, 4000));
+// 确认弹窗：取消 / 点遮罩 / Esc 均关闭
+$("confirm-cancel").onclick = () => $("confirm-overlay").hidden = true;
+$("confirm-overlay").addEventListener("click", (e) => { if (e.target === e.currentTarget) $("confirm-overlay").hidden = true; });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("confirm-overlay").hidden = true; });
 $("run-all").onclick = async () => {
   try { const r = await api("/api/run-all", { method: "POST" }); toast(r.message); await refresh(true); }
   catch (e) { toast(e.message, 4000); }
