@@ -227,6 +227,31 @@ textarea{font-family:var(--mono);font-size:12.5px;line-height:1.7;resize:vertica
 .pager-info{font-size:12.5px;color:var(--muted);font-weight:800;font-family:var(--mono)}
 .btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none;pointer-events:none}
 
+/* ---------- 统计 ---------- */
+.stats-grid{display:grid;grid-template-columns:3fr 2fr;gap:14px;margin-top:14px;align-items:start}
+.stat-card h3{margin:0;font-size:14px;font-weight:900;display:flex;align-items:center;gap:9px}
+.stat-card h3 .gi{width:28px;height:28px;border-radius:9px;background:var(--amber-soft);color:var(--amber);display:grid;place-items:center}
+.rank-list{display:flex;flex-direction:column;gap:12px;margin-top:14px;max-height:520px;overflow:auto;
+           scrollbar-width:thin;padding-right:4px}
+.rank-list::-webkit-scrollbar{width:6px}
+.rank-list::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+.rank-row{display:flex;gap:10px;align-items:flex-start}
+.rank-no{width:24px;height:24px;border-radius:8px;background:var(--line-soft);color:var(--faint);display:grid;
+         place-items:center;font-weight:900;font-size:11.5px;flex:none;font-family:var(--mono);margin-top:2px}
+.rank-row:first-child .rank-no{background:linear-gradient(135deg,#FBBF24,#D97706);color:#fff}
+.rank-main{flex:1;min-width:0}
+.rank-line{display:flex;align-items:baseline;gap:8px}
+.rank-line .g-name{font-weight:800;font-size:13.5px}
+.rank-num{margin-left:auto;font-family:var(--mono);font-weight:900;color:var(--amber-deep);font-size:13px;white-space:nowrap}
+.rank-bar{height:8px;background:var(--line-soft);border-radius:99px;margin:5px 0;overflow:hidden}
+.rank-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#FBBF24,#D97706)}
+.rank-meta{font-size:11.5px;color:var(--faint);font-weight:700}
+.dc-chart{display:flex;align-items:flex-end;gap:5px;margin-top:16px;overflow-x:auto;padding-bottom:4px}
+.dc-col{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:22px;flex:1}
+.dc-col i{width:100%;max-width:34px;border-radius:5px 5px 2px 2px;background:linear-gradient(180deg,#FBBF24,#D97706)}
+.dc-num{font-family:var(--mono);font-size:10.5px;font-weight:800;color:var(--amber-deep)}
+.dc-date{font-family:var(--mono);font-size:9.5px;color:var(--faint);font-weight:700}
+
 /* ---------- 日志 ---------- */
 #log-list{max-height:64vh;overflow:auto;background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);
           margin-top:10px;box-shadow:var(--shadow)}
@@ -259,6 +284,7 @@ textarea{font-family:var(--mono);font-size:12.5px;line-height:1.7;resize:vertica
   .bento{grid-template-columns:repeat(2,1fr)}
   .b.hero-b{grid-column:span 2}
   .slots{grid-template-columns:repeat(2,1fr)}
+  .stats-grid{grid-template-columns:1fr}
   .header-in{padding:10px 20px 0}
   nav#tabs{padding:8px 20px 10px}
   main{padding:18px 20px 60px}

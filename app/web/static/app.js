@@ -34,6 +34,7 @@ const ICONS = {
   archive:'<polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/>',
   user:'<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
   chev:'<polyline points="6 9 12 15 18 9"/>',
+  chart:'<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
 };
 const ic = (name) => ICONS[name] ? `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>` : "";
 document.querySelectorAll("[data-ic]").forEach(el => { el.innerHTML = ic(el.dataset.ic); });
@@ -646,6 +647,7 @@ function activateTab(name) {
   document.querySelectorAll("main section").forEach(s => s.hidden = s.id !== "tab-" + name);
   if (name === "logs") refreshLogs().catch(() => {});
   if (name === "history") refreshHistory().catch(() => {});
+  if (name === "stats") refreshStats().catch(() => {});
   history.replaceState(null, "", "#" + name);   // 刷新后停留在当前页
   try { localStorage.setItem("rocom_tab", name); } catch (_) {}
   return true;
@@ -732,6 +734,104 @@ $("history-list").addEventListener("click", (e) => {
 $("history-list").addEventListener("change", (e) => {
   if (e.target.id === "his-page-size") { hisPageSize = +e.target.value || 10; hisPage = 1; refreshHistory().catch(err => toast(err.message, 4000)); }
 });
+
+/* ---------- 统计 ---------- */
+
+let statShop = "";
+
+async function refreshStats() {
+  const data = await api(`/api/history?days=${$("stat-days").value}`);
+  const shopIds = Object.keys(data.history || {});
+  const sel = $("stat-shop");
+  if (shopIds.length > 1) {
+    sel.hidden = false;
+    if (!shopIds.includes(statShop)) statShop = shopIds.includes("default") ? "default" : shopIds[0];
+    sel.innerHTML = shopIds.map(id => `<option value="${esc(id)}" ${id === statShop ? "selected" : ""}>商店 ${esc(id)}</option>`).join("");
+  } else {
+    sel.hidden = true;
+    statShop = shopIds[0] || "";
+  }
+  const byDay = (data.history || {})[statShop] || {};
+  const dates = Object.keys(byDay).sort();
+  const slots = data.slots || [];
+
+  if (!dates.length) {
+    $("stat-kpis").innerHTML = "";
+    $("stat-body").innerHTML = `<div class="empty">还没有历史数据——统计基于历史记录聚合，暂无可统计内容</div>`;
+    return;
+  }
+
+  // 聚合：每个物品的出现次数 / 出现天数 / 最近出现 / 价格种类
+  const items = new Map();
+  let slotCount = 0, occur = 0;
+  const perDay = [];
+  for (const day of dates) {
+    const dayNames = new Set();
+    for (const slot of slots) {
+      const e = (byDay[day] || {})[slot];
+      if (!e) continue;
+      slotCount++;
+      for (const g of (e.goods || [])) {
+        occur++;
+        dayNames.add(g.name);
+        const it = items.get(g.name) || { count: 0, days: new Set(), last: "", lastPrice: "", priceCount: 0 };
+        it.count++;
+        it.days.add(day);
+        if (g.price) it.prices = (it.prices || new Set()).add(g.price);
+        if (day >= it.last) { it.last = day; it.lastPrice = g.price || it.lastPrice; }
+        it.priceCount = it.prices ? it.prices.size : 0;
+        items.set(g.name, it);
+      }
+    }
+    perDay.push({ date: day, count: dayNames.size });
+  }
+
+  const list = Array.from(items, ([name, it]) => ({
+    name, count: it.count, days: it.days.size, last: it.last, lastPrice: it.lastPrice, priceCount: it.priceCount,
+  })).sort((a, b) => b.count - a.count || b.days - a.days || a.name.localeCompare(b.name));
+  const maxCount = list[0]?.count || 1;
+
+  $("stat-kpis").innerHTML = `
+    <div class="b"><span class="deco amber">${ic("clock")}</span><div class="k">覆盖天数</div><div class="v">${dates.length}<small>天</small></div><div class="s">记录档位 ${slotCount} 个</div></div>
+    <div class="b"><span class="deco purple">${ic("archive")}</span><div class="k">商品种类</div><div class="v">${list.length}<small>种</small></div><div class="s">去重后的物品总数</div></div>
+    <div class="b"><span class="deco green">${ic("activity")}</span><div class="k">出现总次数</div><div class="v">${occur}<small>次</small></div><div class="s">全部档位商品合计</div></div>
+    <div class="b"><span class="deco amber">${ic("check")}</span><div class="k">最高频物品</div><div class="v txt">${esc(list[0].name)}</div><div class="s">出现 ${list[0].count} 次 / ${list[0].days} 天</div></div>`;
+
+  const rankRows = list.map((it, i) => `
+    <div class="rank-row">
+      <span class="rank-no">${i + 1}</span>
+      <div class="rank-main">
+        <div class="rank-line"><span class="g-name">${esc(it.name)}</span><span class="rank-num">${it.count} 次</span></div>
+        <div class="rank-bar"><i style="width:${Math.round(it.count / maxCount * 100)}%"></i></div>
+        <div class="rank-meta">出现 ${it.days} 天 · 最近 ${esc(it.last.slice(5))}${it.lastPrice ? ` · 最近价格 ${esc(it.lastPrice)}` : ""}${it.priceCount > 1 ? ` · ${it.priceCount} 种价格` : ""}</div>
+      </div>
+    </div>`).join("");
+
+  const maxDay = Math.max(...perDay.map(p => p.count), 1);
+  const dayCols = perDay.map(p => `
+    <div class="dc-col" title="${esc(p.date)}：${p.count} 种商品">
+      <span class="dc-num">${p.count}</span>
+      <i style="height:${Math.max(4, Math.round(p.count / maxDay * 88))}px"></i>
+      <span class="dc-date">${esc(p.date.slice(8))}</span>
+    </div>`).join("");
+
+  $("stat-body").innerHTML = `
+    <div class="stats-grid">
+      <div class="card stat-card">
+        <h3><span class="gi">${ic("list")}</span>物品出现排行（${list.length} 种）</h3>
+        <div class="rank-list">${rankRows}</div>
+      </div>
+      <div class="card stat-card">
+        <h3><span class="gi">${ic("chart")}</span>每日出现商品数</h3>
+        <div class="dc-chart">${dayCols}</div>
+        <p class="fhint" style="margin-top:10px">柱高为当日出现的不同商品种数，横轴为日（悬停看完整日期）。</p>
+      </div>
+    </div>`;
+}
+
+$("stat-refresh").onclick = () => refreshStats().catch(e => toast(e.message, 4000));
+$("stat-days").onchange = () => refreshStats().catch(e => toast(e.message, 4000));
+$("stat-shop").onchange = (e) => { statShop = e.target.value; refreshStats().catch(err => toast(err.message, 4000)); };
 
 // 恢复上次所在标签页：优先 URL hash，其次 localStorage，默认「状态」
 let initialTab = decodeURIComponent(location.hash.slice(1)) || "";

@@ -29,6 +29,7 @@
     <button data-tab="channels"><span data-ic="bell"></span>推送渠道<span class="num" id="nav-ch-num"></span></button>
     <button data-tab="settings"><span data-ic="sliders"></span>全局设置</button>
     <button data-tab="history"><span data-ic="history"></span>历史记录</button>
+    <button data-tab="stats"><span data-ic="chart"></span>统计</button>
     <button data-tab="logs"><span data-ic="file"></span>日志</button>
   </nav>
 </header>
@@ -104,6 +105,25 @@
     </div>
     <p class="hint">每次成功调用接口都会按「商店 → 日期 → 档位」记录当次商品；错过或失败的档位显示为空。历史保留天数由上方「保留」控制（默认 30 天），存于 /data/history.json。</p>
     <div id="history-list"></div>
+  </section>
+
+  <!-- ============ 统计 ============ -->
+  <section id="tab-stats" hidden>
+    <div class="row-head">
+      <h2><span data-ic="chart"></span>统计</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <select id="stat-days" class="sel">
+          <option value="7">最近 7 天</option>
+          <option value="14" selected>最近 14 天</option>
+          <option value="30">最近 30 天</option>
+        </select>
+        <select id="stat-shop" class="sel" hidden></select>
+        <button id="stat-refresh" class="btn sm"><span data-ic="refresh"></span>刷新</button>
+      </div>
+    </div>
+    <p class="hint">基于历史记录聚合统计（未调用的档位不计入）；切换范围或商店后自动重新统计。</p>
+    <div class="bento" id="stat-kpis"></div>
+    <div id="stat-body"></div>
   </section>
 
   <!-- ============ 日志 ============ -->
