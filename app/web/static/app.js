@@ -36,6 +36,7 @@ const ICONS = {
   chev:'<polyline points="6 9 12 15 18 9"/>',
   chart:'<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
   star:'<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/>',
 };
 const ic = (name) => ICONS[name] ? `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>` : "";
 document.querySelectorAll("[data-ic]").forEach(el => { el.innerHTML = ic(el.dataset.ic); });
@@ -600,31 +601,54 @@ async function refreshHistory() {
     const totalGoods = slots.reduce((n, slot) => n + ((byDay[day] || {})[slot]?.count ?? 0), 0);
     const dayBadge = day === today ? ' <span class="tag">今天</span>'
       : day === yesterday ? ' <span class="tag blue">昨天</span>' : "";
+    // 全天供应的物品按天合并展示（避免在 4 个档位卡重复出现），档位卡只保留时段窗口商品
+    const allDay = new Map();
+    for (const slot of slots) {
+      const e = (byDay[day] || {})[slot];
+      if (!e) continue;
+      for (const g of (e.goods || [])) {
+        if (g.window === "全天" && !allDay.has(g.name)) allDay.set(g.name, g);
+      }
+    }
     const cards = slots.map(slot => {
       const e = (byDay[day] || {})[slot];
       if (!e) return `<div class="slot-card empty-slot">
         <div class="slot-head"><span class="slot-time">${esc(slot)}</span></div>
         <div class="slot-empty">${ic("clock")}<span>无数据（未调用）</span></div>
       </div>`;
-      const goods = (e.goods || []).map(g => {
+      const shown = (e.goods || []).filter(g => g.window !== "全天");
+      const merged = (e.goods || []).length - shown.length;
+      const goods = shown.map(g => {
         const rare = (cfg.rare_goods || []).includes(g.name);
-        const tags = [];
-        if (rare) tags.push(`<span class="g-tag rare-tag">珍贵</span>`);
-        if (g.limit != null) tags.push(`<span class="g-tag">限购 ${esc(g.limit)}</span>`);
-        if (g.window) tags.push(`<span class="g-tag ${g.window === "全天" ? "" : "blue"} g-window">${esc(g.window)}</span>`);
-        return `<div class="g${rare ? " rare" : ""}"><span class="g-name">${esc(g.name)}</span>` +
-          (g.price ? `<span class="g-price">${esc(g.price)}</span>` : "") + tags.join("") + `</div>`;
-      }).join("") || `<div class="dim">无商品</div>`;
+        const main = [`<span class="g-name">${esc(g.name)}</span>`];
+        if (g.price) main.push(`<span class="g-price">${esc(g.price)}</span>`);
+        if (g.limit != null) main.push(`<span class="g-tag">限购 ${esc(g.limit)}</span>`);
+        if (rare) main.push(`<span class="g-tag rare-tag">珍贵</span>`);
+        return `<div class="g${rare ? " rare" : ""}"><div class="g-main">${main.join("")}</div>` +
+          (g.window ? `<div class="g-win"><span class="g-tag blue">${esc(g.window)}</span></div>` : "") + `</div>`;
+      }).join("") || `<div class="dim">${merged ? "全天商品已合并至上方" : "无商品"}</div>`;
+      const note = merged && shown.length ? `<div class="dim" style="margin-top:7px">另有 ${merged} 件全天商品已合并</div>` : "";
       return `<div class="slot-card">
         <div class="slot-head"><span class="slot-time">${esc(slot)}</span>
           <span class="slot-cnt ${e.count ? "" : "zero"}">${e.count ?? 0} 件</span></div>
         <div class="slot-meta">${e.refresh ? `刷新 ${esc(e.refresh)}` : ""}${e.queried ? ` · ${esc(e.queried)}` : ""}${e.source ? ` · ${esc(e.source)}` : ""}</div>
-        <div class="goods-scroll">${goods}</div>
+        <div class="goods-scroll">${goods}${note}</div>
       </div>`;
     }).join("");
+    const allDayStrip = allDay.size ? `<div class="all-day-strip">
+      <span class="ad-label">${ic("sun")}全天供应</span>
+      ${Array.from(allDay.values()).map(g => {
+        const rare = (cfg.rare_goods || []).includes(g.name);
+        return `<span class="ad-item${rare ? " rare" : ""}"><span class="g-name">${esc(g.name)}</span>` +
+          (g.price ? `<span class="g-price">${esc(g.price)}</span>` : "") +
+          (g.limit != null ? `<span class="g-tag">限购 ${esc(g.limit)}</span>` : "") +
+          (rare ? `<span class="g-tag rare-tag">珍贵</span>` : "") + `</span>`;
+      }).join("")}
+    </div>` : "";
     return `<div class="day">
       <div class="day-head"><span class="day-date">${esc(day)}</span>${dayBadge}
         <span class="day-stat">记录 ${filled}/${slots.length} 档 · 商品 ${totalGoods} 件</span></div>
+      ${allDayStrip}
       <div class="slots">${cards}</div>
     </div>`;
   }).join("");

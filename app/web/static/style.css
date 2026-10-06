@@ -213,16 +213,27 @@ textarea{font-family:var(--mono);font-size:12.5px;line-height:1.7;resize:vertica
               display:flex;flex-direction:column;gap:7px;scrollbar-width:thin}
 .goods-scroll::-webkit-scrollbar{width:6px}
 .goods-scroll::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
-.g{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12.5px;line-height:1.45}
+.g{display:flex;flex-direction:column;gap:4px;font-size:12.5px;line-height:1.5;width:fit-content;max-width:100%}
+.g-main{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.g-win{display:flex}
 .g-name{font-weight:800;color:var(--fg);word-break:break-all}
 .g-price{font-family:var(--mono);color:var(--amber-deep);font-weight:700;font-size:12px;white-space:nowrap}
 .g-tag{background:var(--amber-soft);color:var(--amber-deep);border-radius:6px;padding:0 7px;font-size:10.5px;font-weight:800;white-space:nowrap}
 .g-tag.blue{background:#E3ECFE;color:#1D4ED8}
 .g-tag.rare-tag{background:var(--red-soft);color:var(--red)}
-.g-tag.g-window{flex-basis:100%;justify-self:flex-start;width:fit-content}
-.g.rare{flex-basis:100%;background:linear-gradient(90deg,#FFF6DF,#FFFBEF);border:1px solid #EBCF9A;
-        border-radius:8px;padding:3px 8px}
+.g.rare{background:linear-gradient(90deg,#FFF6DF,#FFFBEF);border:1px solid #EBCF9A;border-radius:8px;padding:3px 9px}
 .g.rare .g-name{color:var(--amber-deep)}
+.all-day-strip{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--card);
+               border:1.5px solid var(--line);border-left:4px solid var(--amber);border-radius:14px;
+               padding:9px 14px;margin-bottom:12px;box-shadow:var(--shadow)}
+.ad-label{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:900;color:var(--amber-deep);
+          background:var(--amber-soft);border-radius:99px;padding:3px 11px;white-space:nowrap;flex:none}
+.ad-label svg{width:13px;height:13px}
+.ad-item{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;background:var(--line-soft);
+         border-radius:99px;padding:3px 11px}
+.ad-item .g-name{font-weight:800}
+.ad-item .g-price{font-size:12px}
+.ad-item.rare{background:linear-gradient(90deg,#FFF6DF,#FFFBEF);border:1px solid #EBCF9A}
 
 /* 统计：珍贵物品管理 + 排行星标 */
 .rare-manage .cnt-note{margin-left:auto;font-size:11px;color:var(--faint);font-family:var(--mono);font-weight:700}
