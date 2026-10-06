@@ -178,6 +178,12 @@ textarea{font-family:var(--mono);font-size:12.5px;line-height:1.7;resize:vertica
 .fgrid label{margin-top:13px}
 .fhint{font-size:11.5px;color:var(--faint);margin:5px 0 0;font-weight:700;line-height:1.5}
 .fhint code{font-family:var(--mono);background:var(--line-soft);border-radius:4px;padding:0 4px}
+.inline-set{display:inline-flex;align-items:center;gap:7px;background:var(--card);border:1.5px solid var(--line);
+            border-radius:99px;padding:4px 6px 4px 13px;font-size:12.5px;font-weight:800;color:var(--muted)}
+.inline-set>svg{color:var(--amber)}
+.inline-set input{width:62px;padding:4px 8px;border:1.5px solid var(--line);border-radius:99px;text-align:center;
+                  font-size:12.5px;font-weight:800;background:var(--card);color:var(--fg);font-family:var(--mono)}
+.inline-set input:focus{outline:none;border-color:var(--amber);box-shadow:0 0 0 3px rgba(217,119,6,.12)}
 .tpl-out{margin:14px 0 0;padding:15px 17px;background:#FFFBEE;border:1.5px solid var(--line);
          border-radius:var(--radius-sm);font-family:var(--mono);font-size:12.5px;line-height:1.8;white-space:pre-wrap;
          color:var(--muted);word-break:break-all}

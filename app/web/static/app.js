@@ -87,6 +87,8 @@ function renderAll() {
   $("nav-tasks-num").textContent = cfg.tasks.filter(t => t.enabled).length || "";
   $("nav-ch-num").textContent = cfg.channels.filter(c => c.enabled).length || "";
   $("user-name").textContent = S.auth_username || "admin";
+  const ld = $("log-days");   // 日志页保留天数控件：用户正在编辑时不覆盖
+  if (ld && !ld.matches(":focus")) ld.value = cfg.log_retention_days;
 }
 
 /* ---------- 状态 ---------- */
@@ -366,7 +368,6 @@ const SETTING_FIELDS = [
   ["http_timeout", "HTTP 超时", "number", "接口设置", "秒", ""],
   ["max_retries", "202/网络错误重试", "number", "接口设置", "次数", ""],
   ["retry_delay", "重试间隔", "number", "接口设置", "秒", ""],
-  ["log_retention_days", "文件日志保留", "number", "数据保留", "天；/logs 按天滚动，保存即生效", ""],
   ["history_days", "调用历史保留", "number", "数据保留", "天；过期自动清理", ""],
 ];
 
@@ -374,7 +375,7 @@ const SETTING_GROUPS = [
   ["接口设置", "对接洛克魔法书开放 API 的基础参数", "key"],
   ["推送行为", "标题前缀与启动行为", "send"],
   ["通知模板", "模板已预填内置默认，可直接修改；{nl} 或 \\n 表示换行，空字段行会自动清理；全天商品 {period} 显示为「全天」", "file"],
-  ["数据保留", "文件日志与调用历史的保留天数，保存即生效", "archive"],
+  ["数据保留", "调用历史的保留天数，过期自动清理", "archive"],
 ];
 
 function renderSettings() {
@@ -495,7 +496,6 @@ async function saveSettings() {
     http_timeout: +v("http_timeout") || 30,
     max_retries: +v("max_retries") || 3,
     retry_delay: +v("retry_delay") || 20,
-    log_retention_days: +v("log_retention_days") || 7,
     history_days: +v("history_days") || 30,
     run_on_start: $("set-run-on-start").checked,
     title_template: $("set-title-template").value,
@@ -644,6 +644,14 @@ $("ch-add").onclick = () => editChannel(null);
 $("settings-save").onclick = saveSettings;
 $("account-save").onclick = saveAccount;
 $("log-refresh").onclick = () => refreshLogs().catch(e => toast(e.message, 4000));
+$("log-days-save").onclick = async () => {
+  const days = +$("log-days").value || 7;
+  try {
+    await api("/api/config", { method: "POST", body: { ...buildPayload(null, ""), log_retention_days: days } });
+    await refresh(true);
+    toast(`日志保留已更新为 ${days} 天`);
+  } catch (e) { toast("保存失败：" + e.message, 4000); }
+};
 $("log-level").onchange = () => refreshLogs().catch(e => toast(e.message, 4000));
 $("his-refresh").onclick = () => refreshHistory().catch(e => toast(e.message, 4000));
 $("his-days").onchange = () => refreshHistory().catch(e => toast(e.message, 4000));
