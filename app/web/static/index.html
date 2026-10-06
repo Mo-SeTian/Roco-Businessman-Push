@@ -13,7 +13,15 @@
       <span class="mark" data-ic="hat"></span>
       <span><b>远行商人推送</b><small>ROCO MERCHANT PUSH</small></span>
     </div>
-    <button id="logout" class="btn-logout"><span data-ic="logout"></span>退出</button>
+    <div class="user-menu">
+      <button id="user-btn" class="user-btn" aria-haspopup="true" aria-expanded="false">
+        <span class="user-avatar" data-ic="user"></span><span id="user-name">admin</span><span data-ic="chev"></span>
+      </button>
+      <div id="user-drop" class="user-drop" hidden>
+        <button id="menu-account" class="drop-item"><span data-ic="key"></span>修改账号密码</button>
+        <button id="logout" class="drop-item danger-item"><span data-ic="logout"></span>退出登录</button>
+      </div>
+    </div>
   </div>
   <nav id="tabs">
     <button data-tab="status" class="on"><span data-ic="activity"></span>状态</button>
@@ -73,11 +81,6 @@
     <div class="row-head"><h2><span data-ic="sliders"></span>全局设置</h2></div>
     <div class="form" id="settings-form"></div>
     <div class="actions"><button id="settings-save" class="btn primary"><span data-ic="check"></span>保存设置</button></div>
-
-    <div class="row-head" style="margin-top:34px"><h2><span data-ic="user"></span>修改账号密码</h2></div>
-    <p class="hint">修改后其他已登录的会话将被踢出，需用新凭据重新登录。</p>
-    <div class="form" id="account-form"></div>
-    <div class="actions"><button id="account-save" class="btn primary"><span data-ic="check"></span>更新账号密码</button></div>
   </section>
 
   <!-- ============ 历史 ============ -->
@@ -124,6 +127,17 @@
     <div class="actions" style="margin-top:16px">
       <button id="confirm-ok" class="btn primary">确定</button>
       <button id="confirm-cancel" class="btn">取消</button>
+    </div>
+  </div>
+</div>
+<div id="account-modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="account-title">
+    <h3 id="account-title"><span data-ic="key"></span>修改账号密码</h3>
+    <p class="modal-sub">修改后其他已登录的会话将被踢出，需用新凭据重新登录</p>
+    <div id="account-form" class="form"></div>
+    <div class="actions" style="margin-top:14px">
+      <button id="account-save" class="btn primary"><span data-ic="check"></span>更新账号密码</button>
+      <button id="account-cancel" class="btn">取消</button>
     </div>
   </div>
 </div>

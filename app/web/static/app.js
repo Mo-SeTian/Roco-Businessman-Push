@@ -33,6 +33,7 @@ const ICONS = {
   key:'<path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/>',
   archive:'<polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/>',
   user:'<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  chev:'<polyline points="6 9 12 15 18 9"/>',
 };
 const ic = (name) => ICONS[name] ? `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>` : "";
 document.querySelectorAll("[data-ic]").forEach(el => { el.innerHTML = ic(el.dataset.ic); });
@@ -85,6 +86,7 @@ function renderAll() {
   renderStatus(); renderTasks(); renderChannels(); renderSettings(); renderAccount();
   $("nav-tasks-num").textContent = cfg.tasks.filter(t => t.enabled).length || "";
   $("nav-ch-num").textContent = cfg.channels.filter(c => c.enabled).length || "";
+  $("user-name").textContent = S.auth_username || "admin";
 }
 
 /* ---------- 状态 ---------- */
@@ -477,6 +479,7 @@ async function saveAccount() {
     } });
     toast(r.message);
     $("acc-old").value = ""; $("acc-pass").value = ""; $("acc-pass2").value = "";
+    $("account-modal").hidden = true;
     await refresh(true);
   } catch (e) { toast(e.message, 4000); }
 }
@@ -604,10 +607,34 @@ $("tabs").addEventListener("click", (e) => {
 });
 $("logout").onclick = async () => { await fetch("/api/logout", { method: "POST" }); location.href = "/login"; };
 $("refresh-status").onclick = () => refresh().catch(e => toast(e.message, 4000));
+
+// 右上角用户菜单：点击展开/收起，点外部或 Esc 收起
+const userDrop = $("user-drop");
+$("user-btn").onclick = () => { userDrop.hidden = !userDrop.hidden; };
+document.addEventListener("click", (e) => {
+  if (!userDrop.hidden && !e.target.closest(".user-menu")) userDrop.hidden = true;
+});
+$("menu-account").onclick = () => {
+  userDrop.hidden = true;
+  if (document.activeElement) document.activeElement.blur();
+  renderAccount();
+  $("account-modal").hidden = false;
+  $("acc-old").focus();
+};
+
 // 确认弹窗：取消 / 点遮罩 / Esc 均关闭
 $("confirm-cancel").onclick = () => $("confirm-overlay").hidden = true;
 $("confirm-overlay").addEventListener("click", (e) => { if (e.target === e.currentTarget) $("confirm-overlay").hidden = true; });
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("confirm-overlay").hidden = true; });
+// 账号弹窗：取消 / 点遮罩关闭
+$("account-cancel").onclick = () => $("account-modal").hidden = true;
+$("account-modal").addEventListener("click", (e) => { if (e.target === e.currentTarget) $("account-modal").hidden = true; });
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    $("confirm-overlay").hidden = true;
+    $("account-modal").hidden = true;
+    userDrop.hidden = true;
+  }
+});
 $("run-all").onclick = async () => {
   try { const r = await api("/api/run-all", { method: "POST" }); toast(r.message); await refresh(true); }
   catch (e) { toast(e.message, 4000); }
