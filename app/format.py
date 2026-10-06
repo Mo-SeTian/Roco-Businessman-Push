@@ -374,15 +374,18 @@ def build_title(norm: dict, tpl: Any) -> str:
 
 
 def _window(good: dict) -> str:
-    """可购窗口：开始 ~ 结束；同一天时结束只显示时刻。"""
+    """可购窗口：全天商品显示“全天”；档位商品只显示时刻（同天省略日期，跨天保留起止日期）。"""
+    if good.get("all_day"):
+        return "全天"
     start, end = good.get("start"), good.get("end")
     if not end:
         return ""
     if not start:
         return f"可购 现在 ~ {end}"
     date_part = end.split("-")[0]
-    tail = end[len(date_part) + 1:] if start.startswith(date_part + "-") else end
-    return f"可购 {start} ~ {tail}"
+    start_hm = start[len(date_part) + 1:] if start.startswith(date_part + "-") else start
+    end_hm = end[len(date_part) + 1:] if end.startswith(date_part + "-") else end
+    return f"可购 {start_hm} ~ {end_hm}"
 
 
 def build_markdown(norm: dict, tpl: Any) -> str:
