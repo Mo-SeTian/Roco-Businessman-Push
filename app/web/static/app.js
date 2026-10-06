@@ -94,6 +94,7 @@ function renderAll() {
   if (ld && !ld.matches(":focus")) ld.value = cfg.log_retention_days;
   const hr = $("his-retention");   // 历史页保留天数控件
   if (hr && !hr.matches(":focus")) hr.value = cfg.history_days;
+  renderRare();   // 设置页珍贵物品 chips
 }
 
 /* ---------- 状态 ---------- */
@@ -850,15 +851,6 @@ async function refreshStats() {
     </div>`).join("");
 
   $("stat-body").innerHTML = `
-    <div class="card stat-card rare-manage">
-      <h3><span class="gi">${ic("star")}</span>珍贵物品管理<span class="cnt-note">${rareList.length} 个</span></h3>
-      <p class="fhint">标记后历史记录中着重显示；名称需与物品显示名完全一致，也可在下方排行中点击星号快速标记。</p>
-      <div class="chips">${rareList.map(n => `
-        <span class="chip">${esc(n)}<button class="chip-x" data-name="${esc(n)}" title="移除" aria-label="移除 ${esc(n)}">×</button></span>`).join("")
-        || `<span class="dim">还没有标记珍贵物品</span>`}</div>
-      <div class="rare-add"><input id="rare-input" placeholder="输入物品名称后回车，或点添加" autocomplete="off">
-        <button id="rare-add-btn" class="btn sm primary">${ic("plus")}添加</button></div>
-    </div>
     <div class="stats-grid">
       <div class="card stat-card">
         <h3><span class="gi">${ic("list")}</span>物品出现排行（${list.length} 种）</h3>
@@ -877,8 +869,17 @@ async function saveRareGoods(list) {
     await api("/api/config", { method: "POST", body: { ...buildPayload(null, ""), rare_goods: list } });
     await refresh(true);
     toast("珍贵物品已更新");
+    renderRare();
     await refreshStats();
   } catch (e) { toast("保存失败：" + e.message, 4000); }
+}
+
+function renderRare() {
+  const list = cfg.rare_goods || [];
+  $("rare-count").textContent = `${list.length} 个`;
+  $("rare-chips").innerHTML = list.map(n => `
+    <span class="chip">${esc(n)}<button class="chip-x" data-name="${esc(n)}" title="移除" aria-label="移除 ${esc(n)}">×</button></span>`).join("")
+    || `<span class="dim">还没有标记珍贵物品</span>`;
 }
 
 async function toggleRare(name) {
@@ -888,9 +889,8 @@ async function toggleRare(name) {
   await saveRareGoods(list);
 }
 
-$("stat-body").addEventListener("click", async (e) => {
-  const star = e.target.closest(".star-btn");
-  if (star) { await toggleRare(star.dataset.name); return; }
+// 设置页：珍贵物品增删
+$("rare-manage-group").addEventListener("click", async (e) => {
   const x = e.target.closest(".chip-x");
   if (x) { await toggleRare(x.dataset.name); return; }
   if (e.target.closest("#rare-add-btn")) {
@@ -902,11 +902,16 @@ $("stat-body").addEventListener("click", async (e) => {
     await saveRareGoods([...(cfg.rare_goods || []), name]);
   }
 });
-$("stat-body").addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && e.target.id === "rare-input") {
+$("rare-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
     e.preventDefault();
     $("rare-add-btn").click();
   }
+});
+// 统计页排行：星号快捷标记/取消
+$("stat-body").addEventListener("click", (e) => {
+  const star = e.target.closest(".star-btn");
+  if (star) toggleRare(star.dataset.name);
 });
 
 $("stat-refresh").onclick = () => refreshStats().catch(e => toast(e.message, 4000));

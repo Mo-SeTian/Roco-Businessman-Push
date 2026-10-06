@@ -82,6 +82,16 @@
     <div class="row-head"><h2><span data-ic="sliders"></span>全局设置</h2></div>
     <div class="form" id="settings-form"></div>
     <div class="actions"><button id="settings-save" class="btn primary"><span data-ic="check"></span>保存设置</button></div>
+
+    <div class="group" id="rare-manage-group" style="margin-top:26px">
+      <h3><span class="gi" data-ic="star"></span>珍贵物品<span class="cnt-note" id="rare-count">0 个</span></h3>
+      <p class="hint">标记后历史记录中着重显示；名称需与物品显示名完全一致，也可在统计页排行中点击星号快速标记。保存后立即生效。</p>
+      <div class="chips" id="rare-chips"></div>
+      <div class="rare-add">
+        <input id="rare-input" placeholder="输入物品名称后回车，或点添加" autocomplete="off">
+        <button id="rare-add-btn" class="btn sm primary"><span data-ic="plus"></span>添加</button>
+      </div>
+    </div>
   </section>
 
   <!-- ============ 历史 ============ -->
