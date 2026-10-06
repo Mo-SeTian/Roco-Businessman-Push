@@ -538,23 +538,39 @@ async function refreshHistory() {
   const dates = Object.keys(byDay).sort().reverse();
   const slots = data.slots || [];
 
+  const iso = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  const today = iso(new Date()), yesterday = iso(new Date(Date.now() - 86400000));
+
   $("history-list").innerHTML = dates.length ? dates.map(day => {
-    const rows = slots.map(slot => {
-      const e = (byDay[day] || {})[slot];
-      if (!e) return `<tr><td class="slot-cell">${slot}</td><td class="dim">— 无数据（未调用）</td></tr>`;
-      const goods = (e.goods || []).map(g => {
-        const bits = [esc(g.name)];
-        if (g.price) bits.push(esc(g.price));
-        if (g.limit != null) bits.push(`限购${esc(g.limit)}`);
-        if (g.window) bits.push(esc(g.window));
-        return `<div class="goods-line">${bits.join("｜")}</div>`;
-      }).join("") || `<span class="dim">无商品</span>`;
-      return `<tr><td class="slot-cell">${slot}<div class="dim" style="font-weight:400">${esc(e.queried || "")}${e.source ? " · " + esc(e.source) : ""}</div></td>
-        <td>${goods}</td><td class="slot-cell">${e.count ?? 0} 件${e.refresh ? `<div class="dim" style="font-weight:400">刷新 ${esc(e.refresh)}</div>` : ""}</td></tr>`;
-    }).join("");
     const filled = slots.filter(slot => (byDay[day] || {})[slot]).length;
-    return `<div class="day"><h2>${esc(day)}<span class="cnt">记录 ${filled}/${slots.length} 档</span></h2>
-      <div class="card table-card"><table><tr><th>档位</th><th>商品明细</th><th>数量</th></tr>${rows}</table></div></div>`;
+    const totalGoods = slots.reduce((n, slot) => n + ((byDay[day] || {})[slot]?.count ?? 0), 0);
+    const dayBadge = day === today ? ' <span class="tag">今天</span>'
+      : day === yesterday ? ' <span class="tag blue">昨天</span>' : "";
+    const cards = slots.map(slot => {
+      const e = (byDay[day] || {})[slot];
+      if (!e) return `<div class="slot-card empty-slot">
+        <div class="slot-head"><span class="slot-time">${esc(slot)}</span></div>
+        <div class="slot-empty">${ic("clock")}<span>无数据（未调用）</span></div>
+      </div>`;
+      const goods = (e.goods || []).map(g => {
+        const tags = [];
+        if (g.limit != null) tags.push(`<span class="g-tag">限购 ${esc(g.limit)}</span>`);
+        if (g.window) tags.push(`<span class="g-tag ${g.window === "全天" ? "" : "blue"}">${esc(g.window)}</span>`);
+        return `<div class="g"><span class="g-name">${esc(g.name)}</span>` +
+          (g.price ? `<span class="g-price">${esc(g.price)}</span>` : "") + tags.join("") + `</div>`;
+      }).join("") || `<div class="dim">无商品</div>`;
+      return `<div class="slot-card">
+        <div class="slot-head"><span class="slot-time">${esc(slot)}</span>
+          <span class="slot-cnt ${e.count ? "" : "zero"}">${e.count ?? 0} 件</span></div>
+        <div class="slot-meta">${e.refresh ? `刷新 ${esc(e.refresh)}` : ""}${e.queried ? ` · ${esc(e.queried)}` : ""}${e.source ? ` · ${esc(e.source)}` : ""}</div>
+        <div class="goods-scroll">${goods}</div>
+      </div>`;
+    }).join("");
+    return `<div class="day">
+      <div class="day-head"><span class="day-date">${esc(day)}</span>${dayBadge}
+        <span class="day-stat">记录 ${filled}/${slots.length} 档 · 商品 ${totalGoods} 件</span></div>
+      <div class="slots">${cards}</div>
+    </div>`;
   }).join("") : `<div class="empty">还没有历史数据——每次成功调用接口后会自动记录（每档一条）</div>`;
 }
 
