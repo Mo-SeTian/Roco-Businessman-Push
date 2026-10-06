@@ -46,6 +46,18 @@ class RingBufferHandler(logging.Handler):
 ring = RingBufferHandler()
 # 文件日志 handler 引用（setup_logging 赋值），供 WebUI 修改保留天数后即时生效
 file_handler: TimedRotatingFileHandler | None = None
+# 文件日志实际状态：成功时记录写入路径，失败时记录原因（供 WebUI 日志页诊断显示）
+file_path: str | None = None
+file_error: str | None = None
+
+
+def set_file_target(path: str | None, error: str | None = None) -> None:
+    global file_path, file_error
+    file_path, file_error = path, error
+
+
+def file_logging_status() -> dict:
+    return {"path": file_path, "error": file_error}
 
 
 def set_file_retention(days: int) -> None:

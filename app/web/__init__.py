@@ -230,14 +230,15 @@ def create_app(store: AppConfigStore | None = None, scheduler: SchedulerService 
         return JSONResponse({"title": msg["title"], "markdown": msg["markdown"], "text": msg["text"]})
 
     async def api_logs(request: Request, _=Depends(_api_guard)):
-        from ..logs import ring
+        from ..logs import file_logging_status, ring
 
         level = request.query_params.get("level", "DEBUG").upper()
         try:
             limit = min(int(request.query_params.get("limit", "500")), 2000)
         except ValueError:
             limit = 500
-        return {"logs": ring.query(min_level=level, limit=limit)}
+        return {"logs": ring.query(min_level=level, limit=limit),
+                "file_log": file_logging_status()}
 
     async def api_run_task(request: Request, _=Depends(_api_guard)):
         payload = await request.json()

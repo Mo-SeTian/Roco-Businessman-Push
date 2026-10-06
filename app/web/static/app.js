@@ -144,17 +144,28 @@ function renderStatus() {
     <div class="b"><span class="deco ${color}">${ic(icon)}</span>
       <div class="k">${k}</div><div class="v txt">${v}</div><div class="s">${sub}</div></div>`).join("");
 
-  // 执行记录（最近 50 次，每次含各渠道成功/失败）
+  // 执行记录（最近 50 次，每次含各渠道成功/失败），分页展示
   const runs = s.run_history || [];
-  const rows = runs.flatMap(run => (run.results || []).map(e => `
+  const runTotalPages = Math.max(1, Math.ceil(runs.length / runPageSize));
+  if (runPage > runTotalPages) runPage = runTotalPages;
+  if (runPage < 1) runPage = 1;
+  const rows = runs.slice((runPage - 1) * runPageSize, runPage * runPageSize).flatMap(run => (run.results || []).map(e => `
     <tr><td class="nowrap mono">${esc(String(run.time || "").slice(5, 19))}${run.reason ? `<div class="dim">${esc(run.reason)}</div>` : ""}</td>
       <td>${esc(e.task)}${e.skipped ? ' <span class="tag off">无变化跳过</span>' : ""}</td>
       <td class="mono">${esc(e.shop)}</td>
       <td>${e.channels.map(c => `<span class="${c.ok ? "ok2" : "bad"}">${c.ok ? "✔" : "✘"}</span> ${esc(c.channel)}` +
         (c.ok ? "" : ` <span class="bad mono">${esc(c.detail)}</span>`)).join("<br>") || "—"}</td>
     </tr>`));
+  const runPager = runs.length > runPageSize ? `<div class="pager">
+    <select id="run-page-size" class="sel" aria-label="每页执行次数">
+      ${[5, 10, 20, 50].map(n => `<option value="${n}" ${n === runPageSize ? "selected" : ""}>每页 ${n} 次</option>`).join("")}
+    </select>
+    <button id="run-prev" class="btn sm" ${runPage <= 1 ? "disabled" : ""}>‹ 上一页</button>
+    <span class="pager-info">第 ${runPage} / ${runTotalPages} 页 · 共 ${runs.length} 次</span>
+    <button id="run-next" class="btn sm" ${runPage >= runTotalPages ? "disabled" : ""}>下一页 ›</button>
+  </div>` : "";
   $("last-results").innerHTML = rows.length ? `<table>
-    <thead><tr><th>执行时间</th><th>任务</th><th>商店</th><th>渠道结果</th></tr></thead><tbody>${rows.join("")}</tbody></table>`
+    <thead><tr><th>执行时间</th><th>任务</th><th>商店</th><th>渠道结果</th></tr></thead><tbody>${rows.join("")}</tbody></table>${runPager}`
     : `<div class="empty">还没有执行记录——执行一次后这里会显示每次各渠道的推送结果</div>`;
 }
 
@@ -270,6 +281,19 @@ function logContentHTML(msg) {
 
 async function refreshLogs() {
   const data = await api(`/api/logs?level=${$("log-level").value}&limit=2000`);
+  const st = $("file-log-status");
+  const fl = data.file_log || {};
+  if (fl.error) {
+    st.textContent = "⚠ 文件日志不可用：" + fl.error + "——当前仅控制台与内存日志，请检查挂载目录权限或 LOG_DIR 设置";
+    st.classList.add("warn");
+    st.hidden = false;
+  } else if (fl.path) {
+    st.textContent = "文件日志写入 " + fl.path + "，按天滚动";
+    st.classList.remove("warn");
+    st.hidden = false;
+  } else {
+    st.hidden = true;
+  }
   const rows = data.logs || [];
   $("log-list").innerHTML = rows.length
     ? `<table><tr><th class="nowrap">时间</th><th class="nowrap">等级</th><th class="nowrap">来源</th><th>内容</th></tr>` +
@@ -537,6 +561,7 @@ function buildPayload(item, mode, delId) {
 let hisShop = "";
 let hisPage = 1;
 let hisPageSize = 10;
+let runPage = 1, runPageSize = 10;   // 执行记录翻页状态（模块级，避免自动刷新重置）
 
 async function refreshHistory() {
   const data = await api(`/api/history?days=${$("his-days").value}`);
@@ -582,7 +607,7 @@ async function refreshHistory() {
       const goods = (e.goods || []).map(g => {
         const tags = [];
         if (g.limit != null) tags.push(`<span class="g-tag">限购 ${esc(g.limit)}</span>`);
-        if (g.window) tags.push(`<span class="g-tag ${g.window === "全天" ? "" : "blue"}">${esc(g.window)}</span>`);
+        if (g.window) tags.push(`<span class="g-tag ${g.window === "全天" ? "" : "blue"} g-window">${esc(g.window)}</span>`);
         return `<div class="g"><span class="g-name">${esc(g.name)}</span>` +
           (g.price ? `<span class="g-price">${esc(g.price)}</span>` : "") + tags.join("") + `</div>`;
       }).join("") || `<div class="dim">无商品</div>`;
@@ -681,6 +706,15 @@ $("log-level").onchange = () => refreshLogs().catch(e => toast(e.message, 4000))
 $("his-refresh").onclick = () => refreshHistory().catch(e => toast(e.message, 4000));
 $("his-days").onchange = () => { hisPage = 1; refreshHistory().catch(e => toast(e.message, 4000)); };
 $("his-shop").onchange = (e) => { hisShop = e.target.value; hisPage = 1; refreshHistory().catch(err => toast(err.message, 4000)); };
+// 执行记录翻页条事件委托（数据已在内存，翻页只重渲染不重新请求）
+$("last-results").addEventListener("click", (e) => {
+  if (e.target.closest("#run-prev")) { runPage--; renderStatus(); }
+  if (e.target.closest("#run-next")) { runPage++; renderStatus(); }
+});
+$("last-results").addEventListener("change", (e) => {
+  if (e.target.id === "run-page-size") { runPageSize = +e.target.value || 10; runPage = 1; renderStatus(); }
+});
+
 // 历史页保留天数：与日志页控件同款，保存即生效
 $("his-retention-save").onclick = async () => {
   const days = +$("his-retention").value || 30;

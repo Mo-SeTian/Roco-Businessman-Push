@@ -55,7 +55,10 @@ def setup_logging(level: str = "INFO", log_dir: str = "logs", retention_days: in
         root.addHandler(file_handler)
         from . import logs as app_logs
         app_logs.file_handler = file_handler
+        app_logs.set_file_target(str(Path(log_dir) / "rocom-push.log"))
     except OSError as exc:
+        from . import logs as app_logs
+        app_logs.set_file_target(None, f"{exc}（目录：{log_dir}）")
         logging.getLogger("main").warning("文件日志目录不可用（%s），仅保留控制台与内存日志", exc)
 
 
