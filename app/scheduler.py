@@ -38,6 +38,7 @@ class SchedulerService:
             "last_fire_at": None,
             "last_message": "尚未执行",
             "last_results": [],
+            "run_history": [],   # 最近执行记录（新在前，最多 50 次），随快照持久化
         }
         # 执行历史持久化到 /data，重启后状态页仍可见
         self._snapshot_path = Path(state_store.path).parent / "scheduler_state.json"
@@ -53,14 +54,14 @@ class SchedulerService:
         except (OSError, ValueError):
             return
         if isinstance(data, dict):
-            for key in ("last_results", "last_message", "last_fire_at"):
+            for key in ("last_results", "last_message", "last_fire_at", "run_history"):
                 if key in data:
                     self.state[key] = data[key]
 
     def _save_snapshot(self) -> None:
         try:
             self._snapshot_path.parent.mkdir(parents=True, exist_ok=True)
-            payload = {k: self.state[k] for k in ("last_results", "last_message", "last_fire_at")}
+            payload = {k: self.state[k] for k in ("last_results", "last_message", "last_fire_at", "run_history")}
             fd, tmp = tempfile.mkstemp(dir=str(self._snapshot_path.parent), suffix=".tmp")
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 json.dump(payload, f, ensure_ascii=False, indent=1)
@@ -167,7 +168,7 @@ class SchedulerService:
                     if not tasks:
                         self.state["last_message"] = "没有启用的任务"
                         return self.state["last_message"]
-                self._fire(cfg, tasks, force=force)
+                self._fire(cfg, tasks, force=force, reason=reason)
                 return self.state["last_message"]
             except Exception as exc:  # noqa: BLE001
                 log.exception("执行异常")
@@ -177,7 +178,7 @@ class SchedulerService:
                 self.state["in_progress"] = False
                 self.state["last_fire_at"] = datetime.now().isoformat(sep=" ", timespec="seconds")
 
-    def _fire(self, cfg: AppConfig, tasks: list[TaskConfig], *, force: bool) -> None:
+    def _fire(self, cfg: AppConfig, tasks: list[TaskConfig], *, force: bool, reason: str = "") -> None:
         shop_keys = cfg.shop_ids or [None]
         client = MerchantClient(
             cfg.rocom_api_key,
@@ -237,6 +238,9 @@ class SchedulerService:
 
         self.state["last_results"] = report[-50:]
         self.state["last_fire_at"] = datetime.now().isoformat(sep=" ", timespec="seconds")
+        runs = self.state.setdefault("run_history", [])
+        runs.insert(0, {"time": self.state["last_fire_at"], "reason": reason, "results": report})
+        del runs[50:]
         ok_count = sum(1 for e in report for c in e["channels"] if c["ok"])
         total = sum(len(e["channels"]) for e in report)
         self.state["last_message"] = (

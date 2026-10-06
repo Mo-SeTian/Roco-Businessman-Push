@@ -144,16 +144,18 @@ function renderStatus() {
     <div class="b"><span class="deco ${color}">${ic(icon)}</span>
       <div class="k">${k}</div><div class="v txt">${v}</div><div class="s">${sub}</div></div>`).join("");
 
-  // 上次执行结果表
-  const rows = (s.last_results || []);
-  $("last-results").innerHTML = rows.length ? `<table>
-    <tr><th>任务</th><th>商店</th><th>渠道结果</th></tr>` + rows.map(e => `<tr>
+  // 执行记录（最近 50 次，每次含各渠道成功/失败）
+  const runs = s.run_history || [];
+  const rows = runs.flatMap(run => (run.results || []).map(e => `
+    <tr><td class="nowrap mono">${esc(String(run.time || "").slice(5, 19))}${run.reason ? `<div class="dim">${esc(run.reason)}</div>` : ""}</td>
       <td>${esc(e.task)}${e.skipped ? ' <span class="tag off">无变化跳过</span>' : ""}</td>
       <td class="mono">${esc(e.shop)}</td>
       <td>${e.channels.map(c => `<span class="${c.ok ? "ok2" : "bad"}">${c.ok ? "✔" : "✘"}</span> ${esc(c.channel)}` +
         (c.ok ? "" : ` <span class="bad mono">${esc(c.detail)}</span>`)).join("<br>") || "—"}</td>
-    </tr>`).join("") + "</table>"
-    : `<div class="empty">还没有执行记录</div>`;
+    </tr>`));
+  $("last-results").innerHTML = rows.length ? `<table>
+    <thead><tr><th>执行时间</th><th>任务</th><th>商店</th><th>渠道结果</th></tr></thead><tbody>${rows.join("")}</tbody></table>`
+    : `<div class="empty">还没有执行记录——执行一次后这里会显示每次各渠道的推送结果</div>`;
 }
 
 /* ---------- 任务 ---------- */

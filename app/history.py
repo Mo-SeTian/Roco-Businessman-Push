@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import tempfile
 import threading
 from datetime import date, datetime, timedelta
@@ -19,6 +20,22 @@ from typing import Any
 from . import format as fmt
 
 log = logging.getLogger("history")
+
+# 旧版窗口文案：可购 10月6日-12:00 ~ 16:00（同天）或 可购 10月6日-20:00 ~ 10月7日-02:00（跨天）
+_OLD_WINDOW = re.compile(r"可购 \d+月\d+日-(\d{1,2}:\d{2}) ~ (?:\d+月\d+日-)?(\d{1,2}:\d{2})$")
+
+
+def _migrate_window(value: str) -> str:
+    """旧版窗口文案迁移：全天特征（开市 08:00 ~ 当日收市）显示“全天”，同天窗口去掉月日。"""
+    if not value or "可购" not in value:
+        return value
+    m = _OLD_WINDOW.search(value)
+    if m:
+        start_hm, end_hm = m.group(1), m.group(2)
+        if start_hm == "08:00" and end_hm in ("24:00", "00:00", "23:59"):
+            return "全天"
+        return f"可购 {start_hm} ~ {end_hm}"
+    return re.sub(r"(~ )\d+月\d+日-", r"\1", value)
 
 
 class HistoryStore:
@@ -37,6 +54,19 @@ class HistoryStore:
             self._data = data if isinstance(data, dict) else {}
         except (OSError, ValueError):
             self._data = {}
+        # 迁移旧版窗口文案（修复前写入的条目），仅在内存中转换
+        for days in self._data.values():
+            if not isinstance(days, dict):
+                continue
+            for slots in days.values():
+                if not isinstance(slots, dict):
+                    continue
+                for entry in slots.values():
+                    if not isinstance(entry, dict):
+                        continue
+                    for good in entry.get("goods") or []:
+                        if isinstance(good, dict) and good.get("window"):
+                            good["window"] = _migrate_window(str(good["window"]))
 
     def _write(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
