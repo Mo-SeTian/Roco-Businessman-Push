@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
@@ -26,6 +27,30 @@ from ..store import AppConfigStore
 log = logging.getLogger("web")
 
 PACKAGE_DIR = Path(__file__).resolve().parent
+
+_STATIC_RE = re.compile(r'(/static/[A-Za-z0-9_.-]+\.(?:css|js))')
+
+
+def _read_page(name: str) -> str:
+    """读取页面并给静态资源引用追加 mtime 版本号，避免浏览器缓存旧 CSS/JS。"""
+    html = (PACKAGE_DIR / "static" / name).read_text(encoding="utf-8")
+
+    def _stamp(m: re.Match) -> str:
+        path = PACKAGE_DIR / m.group(1).lstrip("/")
+        try:
+            version = str(int(path.stat().st_mtime))
+        except OSError:
+            version = "0"
+        return f"{m.group(1)}?v={version}"
+
+    return _STATIC_RE.sub(_stamp, html)
+
+
+def _page_response(name: str) -> HTMLResponse:
+    """页面响应禁用启发式缓存：必须重新验证，配合上面的资源版本号保证更新即生效。"""
+    resp = HTMLResponse(_read_page(name))
+    resp.headers["Cache-Control"] = "no-cache"
+    return resp
 
 
 def create_app(store: AppConfigStore | None = None, scheduler: SchedulerService | None = None) -> FastAPI:
@@ -61,23 +86,20 @@ def create_app(store: AppConfigStore | None = None, scheduler: SchedulerService 
             raise HTTPException(status_code=401, detail="请先登录")
         return True
 
-    def _read_page(name: str) -> str:
-        return (PACKAGE_DIR / "static" / name).read_text(encoding="utf-8")
-
     # ---- 页面 ----
 
     async def login_page():
         cfg = app_store.load()
         if not web_auth.auth_enabled(cfg):
             return RedirectResponse("/", status_code=303)
-        return HTMLResponse(_read_page("login.html"))
+        return _page_response("login.html")
 
     async def index(request: Request):
         if web_auth.auth_enabled(app_store.load()) and not web_auth.session_valid(
             request.cookies.get(web_auth.SESSION_COOKIE)
         ):
             return RedirectResponse("/login", status_code=303)
-        return HTMLResponse(_read_page("index.html"))
+        return _page_response("index.html")
 
     # ---- 认证 ----
 

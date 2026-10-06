@@ -99,7 +99,7 @@ function renderStatus() {
     $("hero-next").textContent = "执行中…";
     $("hero-sub").textContent = s.last_message || "正在拉取数据并推送";
   } else if (next && s.running) {
-    $("hero-next").innerHTML = `${pad2(next.getHours())}:${pad2(next.getMinutes())} <small>${next.getMonth() + 1}-${next.getDate()}</small>`;
+    $("hero-next").innerHTML = `${pad2(next.getHours())}:${pad2(next.getMinutes())} <small>${next.getMonth() + 1}-${pad2(next.getDate())}</small>`;
     const diffMin = Math.round((next - nowBase) / 60000);
     if (diffMin > 0) {
       const h = Math.floor(diffMin / 60), m = diffMin % 60;
