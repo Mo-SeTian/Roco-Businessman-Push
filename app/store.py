@@ -106,7 +106,12 @@ class AppConfigStore:
             }]
         if not data.get("console_auth"):
             data["console_auth"] = _default_console_auth(env)
-        return AppConfig.from_mapping(data)
+        cfg = AppConfig.from_mapping(data)
+        # 解析时跳过的渠道/任务说明 → 状态页 issue 横幅
+        self.last_issue = "；".join(cfg.issues) if cfg.issues else None
+        if self.last_issue:
+            log.warning(self.last_issue)
+        return cfg
 
     def _seed_from_env(self) -> AppConfig:
         env = self.env

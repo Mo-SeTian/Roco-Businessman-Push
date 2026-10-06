@@ -1,6 +1,8 @@
 /* 洛克王国远行商人推送控制台（无框架原生 JS） */
 "use strict";
 
+const BASE_TITLE = "洛克王国远行商人推送";
+
 let S = null;          // /api/state 原始数据
 let cfg = null;        // 本地工作副本（保存时整体提交）
 let editingTaskId = null;   // null=新建
@@ -37,11 +39,13 @@ const ICONS = {
   chart:'<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
   star:'<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
   sun:'<circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/>',
+  download:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
 };
 const ic = (name) => ICONS[name] ? `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>` : "";
 document.querySelectorAll("[data-ic]").forEach(el => { el.innerHTML = ic(el.dataset.ic); });
 
 const pad2 = (n) => String(n).padStart(2, "0");
+let cdUntil = null, cdSkew = 0;   // Hero 倒计时：目标时间与服务器时钟偏移
 function parseLocal(v) {  // "2026-10-06 16:05" / ISO 时间 → 本地 Date（后端用空格分隔，Safari 不能直接 new Date）
   const m = String(v || "").match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
   return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) : null;
@@ -104,23 +108,28 @@ function renderStatus() {
   const nowBase = parseLocal(S.now) || new Date();
   const next = parseLocal(s.next_run_at);
 
-  // Hero：下次执行 + 客户端倒计时
+  // Hero：下次执行 + 客户端倒计时（秒级由 tickHero 驱动）
   if (s.in_progress) {
+    cdUntil = null;
     $("hero-next").textContent = "执行中…";
     $("hero-sub").textContent = s.last_message || "正在拉取数据并推送";
   } else if (next && s.running) {
     $("hero-next").innerHTML = `${pad2(next.getHours())}:${pad2(next.getMinutes())} <small>${next.getMonth() + 1}-${pad2(next.getDate())}</small>`;
-    const diffMin = Math.round((next - nowBase) / 60000);
-    if (diffMin > 0) {
-      const h = Math.floor(diffMin / 60), m = diffMin % 60;
+    cdUntil = next;
+    cdSkew = Date.now() - nowBase.getTime();
+    const remain = next.getTime() - nowBase.getTime();
+    if (remain > 0) {
+      const h = Math.floor(remain / 3600000), m = Math.floor((remain % 3600000) / 60000);
       $("hero-sub").innerHTML = `距下次执行还有 <b>${h > 0 ? h + " 小时 " : ""}${m} 分钟</b>，启用任务将按时推送`;
     } else {
       $("hero-sub").textContent = "即将执行…";
     }
   } else if (!s.running) {
+    cdUntil = null;
     $("hero-next").textContent = "已停止";
     $("hero-sub").textContent = s.last_message || "调度器未运行";
   } else {
+    cdUntil = null;
     $("hero-next").textContent = "—";
     $("hero-sub").textContent = s.last_message || "暂无调度计划";
   }
@@ -171,6 +180,9 @@ function renderStatus() {
   $("last-results").innerHTML = rows.length ? `<table>
     <thead><tr><th>执行时间</th><th>任务</th><th>商店</th><th>渠道结果</th></tr></thead><tbody>${rows.join("")}</tbody></table>${runPager}`
     : `<div class="empty">还没有执行记录——执行一次后这里会显示每次各渠道的推送结果</div>`;
+
+  // 浏览器标签标题：最近一次执行有渠道失败时提醒
+  document.title = badN ? `【有失败】${BASE_TITLE}` : BASE_TITLE;
 }
 
 /* ---------- 任务 ---------- */
@@ -199,11 +211,12 @@ function editTask(id) {
   editingTaskId = id || null;
   const t = id ? cfg.tasks.find(x => x.id === id) : { name: "", times: ["08:05", "12:05", "16:05", "20:05"], channel_ids: [], enabled: true, only_on_change: true };
   if (!cfg.channels.length) { toast("请先在「推送渠道」里至少创建一个渠道"); return; }
+  teTimes = [...t.times];
   $("task-editor").innerHTML = `
     <h2>${ic("send")}${id ? "编辑任务" : "新建任务"}</h2>
     <label>任务名称</label><input type="text" id="te-name" value="${esc(t.name)}" placeholder="例如：早间推送">
-    <label>触发时间（HH:MM，逗号分隔，可多个）</label>
-    <input type="text" id="te-times" value="${esc(t.times.join(","))}">
+    <label>触发时间（HH:MM，回车或逗号添加，可多个）</label>
+    <div class="time-chips" id="te-times-box"></div>
     <label>推送到哪些渠道</label>
     <div class="checks">${cfg.channels.map(c => `
       <label><input type="checkbox" class="ch-check" value="${c.id}" ${t.channel_ids.includes(c.id) ? "checked" : ""}>
@@ -214,14 +227,38 @@ function editTask(id) {
     <div class="checkbox"><input type="checkbox" id="te-en" ${t.enabled ? "checked" : ""}>启用该任务</div>
     <div class="actions">
       <button class="btn primary" onclick="saveTask()">${ic("check")}保存</button>
-      <button class="btn" onclick="$('task-editor').hidden=true">取消</button>
+      <button class="btn" onclick="$('task-modal').hidden=true">取消</button>
     </div>`;
-  $("task-editor").hidden = false;
-  window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+  renderTeTimes();
+  $("task-modal").hidden = false;
+  $("te-name").focus();
+}
+
+let teTimes = [];
+function renderTeTimes() {
+  const box = $("te-times-box");
+  if (!box) return;
+  const chips = teTimes.map(t => `
+    <span class="chip">${esc(t)}<button type="button" class="chip-x" data-time="${esc(t)}" title="移除">×</button></span>`).join("");
+  box.innerHTML = chips + `
+    <input id="te-time-input" placeholder="09:30 回车添加" autocomplete="off">
+    <button type="button" class="btn sm" id="te-times-default">填默认四档</button>`;
+  $("te-time-input").focus();
+}
+
+function addTime(v) {
+  const m = String(v || "").trim().match(/^(\d{1,2}):(\d{2})$/);
+  if (!m || +m[1] > 23 || +m[2] > 59) { toast("时间格式应为 HH:MM（如 08:05）"); return; }
+  const t = `${String(+m[1]).padStart(2, "0")}:${m[2]}`;
+  if (teTimes.includes(t)) { toast("该时间已存在"); return; }
+  teTimes.push(t);
+  teTimes.sort();
+  renderTeTimes();
 }
 
 async function saveTask() {
-  const times = $("te-times").value.split(",").map(s => s.trim()).filter(Boolean);
+  const times = [...teTimes].sort();
+  if (!times.length) { toast("请至少添加一个触发时间"); return; }
   const channel_ids = [...document.querySelectorAll("#task-editor .ch-check")]
     .filter(c => c.checked).map(c => c.value);
   const data = {
@@ -233,7 +270,7 @@ async function saveTask() {
   };
   try {
     await api("/api/config", { method: "POST", body: buildPayload(data, "task") });
-    $("task-editor").hidden = true;
+    $("task-modal").hidden = true;
     await refresh(true);
     toast("任务已保存");
   } catch (e) { toast("保存失败：" + e.message, 4000); }
@@ -263,7 +300,7 @@ function renderChannels() {
       <div class="info">
         <div class="title">${esc(c.name)} <span class="tag purple">${esc(S.channel_types[c.type]?.label || c.type)}</span>
           ${c.enabled ? "" : '<span class="tag off">已停用</span>'}</div>
-        <div class="meta">${meta}</div>
+        <div class="meta">${meta}${lastTest[c.id] ? `<span class="${lastTest[c.id].ok ? "ok2" : "bad"}" title="${esc(lastTest[c.id].detail)}">· 最近测试${lastTest[c.id].ok ? "成功" : "失败"} ${esc(lastTest[c.id].time)}</span>` : ""}</div>
       </div>
       <div class="ops">
         <button class="btn sm" onclick="testChannel('${c.id}')">${ic("zap")}发送测试</button>
@@ -283,8 +320,11 @@ function logContentHTML(msg) {
   return `<details><summary>${esc(msg.slice(0, LOG_MSG_FOLD))}…（展开全部 ${msg.length} 字）</summary><pre>${esc(msg)}</pre></details>`;
 }
 
+let lastLogs = [];
+
 async function refreshLogs() {
   const data = await api(`/api/logs?level=${$("log-level").value}&limit=2000`);
+  lastLogs = data.logs || [];
   const st = $("file-log-status");
   const fl = data.file_log || {};
   if (fl.error) {
@@ -298,14 +338,21 @@ async function refreshLogs() {
   } else {
     st.hidden = true;
   }
-  const rows = data.logs || [];
+  renderLogRows();
+}
+
+function renderLogRows() {
+  const kw = ($("log-filter").value || "").trim().toLowerCase();
+  const rows = kw
+    ? lastLogs.filter(l => `${l.message} ${l.logger} ${l.level}`.toLowerCase().includes(kw))
+    : lastLogs;
   $("log-list").innerHTML = rows.length
     ? `<table><tr><th class="nowrap">时间</th><th class="nowrap">等级</th><th class="nowrap">来源</th><th>内容</th></tr>` +
       rows.map(l => `<tr><td class="nowrap mono">${esc(l.ts)}</td>` +
         `<td class="nowrap lv-${esc(l.level.toLowerCase())}">${esc(l.level)}</td>` +
         `<td class="nowrap">${esc(l.logger)}</td><td class="log-msg">${logContentHTML(l.message)}</td></tr>`).join("") +
       `</table>`
-    : `<div class="empty">暂无日志</div>`;
+    : `<div class="empty">${kw ? "没有匹配的日志" : "暂无日志"}</div>`;
   const box = $("log-list");
   box.scrollTop = box.scrollHeight;
 }
@@ -316,8 +363,10 @@ function channelFieldsHTML(type, config) {
     const val = config[f.name] || "";
     const has = config[`has_${f.name}`];
     const placeholder = has ? "已配置（留空保持不变）" : (f.default ? `默认 ${f.default}` : "");
-    const input = `<input type="text" id="cf-${f.name}" value="${esc(val)}" placeholder="${esc(placeholder)}"
-      ${f.secret ? 'autocomplete="off"' : ""}>`;
+    const input = f.secret
+      ? `<div class="secret-wrap"><input type="password" id="cf-${f.name}" value="${esc(val)}" placeholder="${esc(placeholder)}" autocomplete="off">
+           <button type="button" class="eye-btn" data-target="cf-${f.name}" title="显示/隐藏密钥">${ic("eye")}</button></div>`
+      : `<input type="text" id="cf-${f.name}" value="${esc(val)}" placeholder="${esc(placeholder)}">`;
     return `<label>${esc(f.label)}${f.required ? " *" : ""}${f.secret ? "（密钥）" : ""}</label>${input}`;
   }).join("");
 }
@@ -339,10 +388,10 @@ function editChannel(id) {
     <div class="actions">
       <button id="ce-test" class="btn" onclick="testChannelDraft()">${ic("zap")}发送测试</button>
       <button class="btn primary" onclick="saveChannel()">${ic("check")}保存</button>
-      <button class="btn" onclick="$('channel-editor').hidden=true">取消</button>
+      <button class="btn" onclick="$('channel-modal').hidden=true">取消</button>
     </div>`;
-  $("channel-editor").hidden = false;
-  window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+  $("channel-modal").hidden = false;
+  $("ce-name").focus();
 }
 
 function ceRebuildFields() {
@@ -363,7 +412,7 @@ async function saveChannel() {
   try {
     const draft = collectChannelDraft();
     await api("/api/config", { method: "POST", body: buildPayload(draft, "channel") });
-    $("channel-editor").hidden = true;
+    $("channel-modal").hidden = true;
     await refresh(true);
     toast("渠道已保存");
   } catch (e) { toast("保存失败：" + e.message, 4000); }
@@ -376,8 +425,21 @@ function delChannel(id) {
   }, { danger: true, okText: "删除" });
 }
 
+const lastTest = {};   // 渠道最近一次测试结果（会话内）：id -> {ok, time, detail}
+
+function noteTest(id, r) {
+  if (!id) return;
+  const now = new Date();
+  lastTest[id] = { ok: !!r.ok, time: `${pad2(now.getHours())}:${pad2(now.getMinutes())}`, detail: r.message || "" };
+  renderChannels();
+}
+
 async function testChannel(id) {
-  try { const r = await api("/api/test-channel", { method: "POST", body: { id } }); toast(r.ok ? "测试已发送 ✔" : "测试失败：" + r.message, 4000); }
+  try {
+    const r = await api("/api/test-channel", { method: "POST", body: { id } });
+    noteTest(id, r);
+    toast(r.ok ? "测试已发送 ✔" : "测试失败：" + r.message, 4000);
+  }
   catch (e) { toast(e.message, 4000); }
 }
 
@@ -387,6 +449,7 @@ async function testChannelDraft() {
     // 编辑已保存实例时带上 id：后端会用已保存密钥补齐表单里留空（保持不变）的字段
     const body = editingChannelId ? { id: editingChannelId, instance: draft } : { instance: draft };
     const r = await api("/api/test-channel", { method: "POST", body });
+    if (editingChannelId) noteTest(editingChannelId, r);
     toast(r.ok ? "测试已发送 ✔" : "测试失败：" + r.message, 4000);
   } catch (e) { toast(e.message, 4000); }
 }
@@ -565,6 +628,7 @@ function buildPayload(item, mode, delId) {
 let hisShop = "";
 let hisPage = 1;
 let hisPageSize = 10;
+let lastHistory = null;   // 最近一次历史查询（供导出 CSV）
 let runPage = 1, runPageSize = 10;   // 执行记录翻页状态（模块级，避免自动刷新重置）
 
 async function refreshHistory() {
@@ -582,6 +646,7 @@ async function refreshHistory() {
   const byDay = (data.history || {})[hisShop] || {};
   const dates = Object.keys(byDay).sort().reverse();
   const slots = data.slots || [];
+  lastHistory = { byDay, slots, shop: hisShop };
 
   if (!dates.length) {
     $("history-list").innerHTML = `<div class="empty">还没有历史数据——每次成功调用接口后会自动记录（每档一条）</div>`;
@@ -714,9 +779,12 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     $("confirm-overlay").hidden = true;
     $("account-modal").hidden = true;
+    $("task-modal").hidden = true;
+    $("channel-modal").hidden = true;
     userDrop.hidden = true;
   }
 });
+$("log-filter").addEventListener("input", renderLogRows);
 $("run-all").onclick = async () => {
   try { const r = await api("/api/run-all", { method: "POST" }); toast(r.message); await refresh(true); }
   catch (e) { toast(e.message, 4000); }
@@ -768,6 +836,7 @@ $("history-list").addEventListener("change", (e) => {
 /* ---------- 统计 ---------- */
 
 let statShop = "";
+let lastStats = null;   // 最近一次统计结果（供导出 CSV）
 
 async function refreshStats() {
   const data = await api(`/api/history?days=${$("stat-days").value}`);
@@ -820,6 +889,7 @@ async function refreshStats() {
     name, count: it.count, days: it.days.size, last: it.last, lastPrice: it.lastPrice, priceCount: it.priceCount,
   })).sort((a, b) => b.count - a.count || b.days - a.days || a.name.localeCompare(b.name));
   const maxCount = list[0]?.count || 1;
+  lastStats = { list, days: $("stat-days").value };
 
   $("stat-kpis").innerHTML = `
     <div class="b"><span class="deco amber">${ic("clock")}</span><div class="k">覆盖天数</div><div class="v">${dates.length}<small>天</small></div><div class="s">记录档位 ${slotCount} 个</div></div>
@@ -919,6 +989,77 @@ $("stat-body").addEventListener("click", (e) => {
 $("stat-refresh").onclick = () => refreshStats().catch(e => toast(e.message, 4000));
 $("stat-days").onchange = () => refreshStats().catch(e => toast(e.message, 4000));
 $("stat-shop").onchange = (e) => { statShop = e.target.value; refreshStats().catch(err => toast(err.message, 4000)); };
+
+/* ---------- 导出 CSV ---------- */
+
+function downloadCSV(filename, rows) {
+  const csv = "\uFEFF" + rows.map(r => r.map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\r\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+$("his-export").onclick = () => {
+  if (!lastHistory) { toast("还没有可导出的数据"); return; }
+  const { byDay, slots, shop } = lastHistory;
+  const rows = [["日期", "档位", "物品", "价格", "限购", "时段", "采集时间", "来源", "刷新"]];
+  for (const day of Object.keys(byDay).sort()) {
+    for (const slot of slots) {
+      const e = (byDay[day] || {})[slot];
+      if (!e) continue;
+      const goods = e.goods || [];
+      for (const g of goods)
+        rows.push([day, slot, g.name, g.price || "", g.limit ?? "", g.window || "", e.queried || "", e.source || "", e.refresh || ""]);
+      if (!goods.length) rows.push([day, slot, "（无商品）", "", "", "", e.queried || "", e.source || "", e.refresh || ""]);
+    }
+  }
+  downloadCSV(`history-${shop}-${$("his-days").value}d.csv`, rows);
+  toast("历史记录已导出");
+};
+
+$("stat-export").onclick = () => {
+  if (!lastStats || !lastStats.list.length) { toast("还没有可导出的数据"); return; }
+  const rows = [["物品", "出现次数", "出现天数", "最近出现", "最近价格", "价格种类"],
+    ...lastStats.list.map(it => [it.name, it.count, it.days, it.last, it.lastPrice || "", it.priceCount])];
+  downloadCSV(`stats-${lastStats.days}d.csv`, rows);
+  toast("统计数据已导出");
+};
+
+/* ---------- 编辑器弹窗内的事件 ---------- */
+
+// 任务触发时间 chips
+$("task-editor").addEventListener("click", (e) => {
+  const x = e.target.closest(".chip-x");
+  if (x) { teTimes = teTimes.filter(t => t !== x.dataset.time); renderTeTimes(); return; }
+  if (e.target.closest("#te-times-default")) { teTimes = ["08:05", "12:05", "16:05", "20:05"]; renderTeTimes(); }
+});
+$("task-editor").addEventListener("keydown", (e) => {
+  if (e.target.id === "te-time-input" && (e.key === "Enter" || e.key === ",")) {
+    e.preventDefault();
+    addTime(e.target.value);
+  }
+});
+
+// 渠道密钥显示/隐藏
+$("channel-editor").addEventListener("click", (e) => {
+  const btn = e.target.closest(".eye-btn");
+  if (!btn) return;
+  const inp = document.getElementById(btn.dataset.target);
+  if (inp) inp.type = inp.type === "password" ? "text" : "password";
+});
+
+// Hero 倒计时每秒走动（仅状态页可见时）
+setInterval(() => {
+  if (!cdUntil || document.getElementById("tab-status").hidden) return;
+  const remain = cdUntil.getTime() - (Date.now() - cdSkew);
+  const el = $("hero-sub");
+  if (remain <= 0) { el.textContent = "即将执行…"; return; }
+  const s = Math.floor(remain / 1000);
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  el.innerHTML = `距下次执行还有 <b>${h > 0 ? h + " 小时 " : ""}${m > 0 || h > 0 ? m + " 分 " : ""}${sec} 秒</b>，启用任务将按时推送`;
+}, 1000);
 
 // 恢复上次所在标签页：优先 URL hash，其次 localStorage，默认「状态」
 let initialTab = decodeURIComponent(location.hash.slice(1)) || "";

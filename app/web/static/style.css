@@ -150,9 +150,10 @@ tbody tr:hover{background:#FFFBEE}
        font-size:13px;margin-top:10px;background:rgba(255,255,255,.6)}
 
 /* ---------- 表单 / 分组 ---------- */
-.group,.editor{background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);padding:20px 22px 22px;
+.group{background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);padding:20px 22px 22px;
        margin-top:14px;box-shadow:var(--shadow)}
-.group>h3,.editor>h2{margin:0 0 2px;font-size:14px;font-weight:900;display:flex;align-items:center;gap:9px}
+.editor{margin:0}
+.editor>h2,.group>h3{margin:0 0 2px;font-size:14px;font-weight:900;display:flex;align-items:center;gap:9px}
 .editor>h2{font-size:15px}
 .group>h3 .gi{width:28px;height:28px;border-radius:9px;background:var(--amber-soft);color:var(--amber);
               display:grid;place-items:center}
@@ -246,6 +247,21 @@ textarea{font-family:var(--mono);font-size:12.5px;line-height:1.7;resize:vertica
 .chip-x:hover{background:var(--red);color:#fff}
 .rare-add{display:flex;gap:8px;margin-top:12px}
 .rare-add input{flex:1;min-width:0}
+
+/* 编辑器弹窗 / 时间 chips / 密钥眼睛 */
+.modal-card.editor-modal{max-width:600px}
+.editor .actions{margin-bottom:0}
+.time-chips{display:flex;flex-wrap:wrap;gap:8px;align-items:center;border:1.5px solid var(--line);
+            border-radius:var(--radius-sm);padding:8px 10px;background:var(--card)}
+.time-chips input{flex:1;min-width:110px;border:1.5px solid transparent;border-radius:8px;padding:5px 10px;
+                  font-size:13px;font-family:var(--mono);background:transparent;color:var(--fg)}
+.time-chips input:focus{outline:none;border-color:var(--amber);background:var(--card)}
+.secret-wrap{position:relative}
+.secret-wrap input{padding-right:42px}
+.eye-btn{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:transparent;
+         color:var(--faint);cursor:pointer;padding:3px;border-radius:6px;line-height:0}
+.eye-btn:hover{color:var(--amber-deep)}
+.eye-btn svg{width:15px;height:15px}
 .star-btn{border:0;background:transparent;color:var(--line);padding:2px;cursor:pointer;line-height:0;
           border-radius:6px;transition:.15s;margin-left:auto}
 .star-btn svg{width:15px;height:15px}
@@ -298,11 +314,12 @@ textarea{font-family:var(--mono);font-size:12.5px;line-height:1.7;resize:vertica
 #log-list pre{margin:6px 0 0;padding:10px 12px;background:#FFFBEE;border:1px solid var(--line);
   border-radius:10px;white-space:pre-wrap;word-break:break-all;font-family:var(--mono);font-size:12px;color:var(--muted)}
 
-/* ---------- 确认弹窗 / 账号弹窗 / Toast ---------- */
-#confirm-overlay,#account-modal{position:fixed;inset:0;background:rgba(41,37,36,.45);display:grid;place-items:center;
-                                z-index:50;backdrop-filter:blur(2px)}
+/* ---------- 确认弹窗 / 账号弹窗 / 编辑器弹窗 / Toast ---------- */
+#confirm-overlay,#account-modal,#task-modal,#channel-modal{position:fixed;inset:0;background:rgba(41,37,36,.45);
+                                display:grid;place-items:center;z-index:50;backdrop-filter:blur(2px)}
 .confirm-box,.modal-card{background:var(--card);border-radius:var(--radius);padding:22px 24px;max-width:440px;
-             width:calc(100vw - 48px);box-shadow:0 20px 50px rgba(0,0,0,.22)}
+             width:calc(100vw - 48px);box-shadow:0 20px 50px rgba(0,0,0,.22);max-height:calc(100vh - 48px);overflow:auto}
+.modal-card.editor-modal{max-width:620px}
 .confirm-box h3,.modal-card h3{margin:0 0 6px;font-size:15px;font-weight:900;display:flex;align-items:center;gap:8px}
 .confirm-box h3 svg,.modal-card h3 svg{color:var(--amber)}
 .confirm-box p{margin:0;font-size:13.5px;color:var(--muted);white-space:pre-line}

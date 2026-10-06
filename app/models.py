@@ -170,6 +170,7 @@ class AppConfig:
     rocom_api_key: str = ""
     shop_ids: list[str] = field(default_factory=list)  # 空 = 服务端默认 3009
     rare_goods: list[str] = field(default_factory=list)  # 珍贵物品名单（历史记录着重显示）
+    issues: list[str] = field(default_factory=list)  # 解析时跳过/修正的条目说明（运行时状态，不落盘）
     wait_ms: int = 8000
     http_timeout: int = 30
     max_retries: int = 3
@@ -224,14 +225,24 @@ class AppConfig:
 
     @classmethod
     def from_mapping(cls, data: dict) -> "AppConfig":
-        channels = [ChannelInstance.from_mapping(c) for c in data.get("channels") or []]
-        tasks = [TaskConfig.from_mapping(t) for t in data.get("tasks") or []]
-        # 任务引用的渠道必须存在
+        # 单个渠道/任务无效只跳过该条并记录说明，不再让整份配置降级为默认
+        channels: list[ChannelInstance] = []
+        issues: list[str] = []
+        for raw in data.get("channels") or []:
+            try:
+                channels.append(ChannelInstance.from_mapping(raw))
+            except ValueError as exc:
+                label = str((raw or {}).get("name") or (raw or {}).get("id") or "未命名渠道")
+                issues.append(f"渠道「{label}」配置无效已跳过：{exc}")
+        tasks: list[TaskConfig] = []
         known = {c.id for c in channels}
-        for t in tasks:
+        for raw in data.get("tasks") or []:
+            t = TaskConfig.from_mapping(raw)
             unknown = [cid for cid in t.channel_ids if cid not in known]
             if unknown:
-                raise ValueError(f"任务「{t.name}」引用了不存在的渠道：{', '.join(unknown)}")
+                issues.append(f"任务「{t.name}」引用了不存在的渠道，已忽略：{', '.join(unknown)}")
+                t.channel_ids = [cid for cid in t.channel_ids if cid in known]
+            tasks.append(t)
         return cls(
             rocom_api_key=str(data.get("rocom_api_key") or "").strip(),
             shop_ids=_parse_shop_ids(data.get("shop_ids")),
@@ -252,6 +263,7 @@ class AppConfig:
             channels=channels,
             tasks=tasks,
             console_auth=dict(data.get("console_auth") or {}),
+            issues=issues,
         )
 
 
