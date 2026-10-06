@@ -358,20 +358,20 @@ async function testChannelDraft() {
 /* ---------- 设置 ---------- */
 
 const SETTING_FIELDS = [
-  ["rocom_api_key", "RoCom API Key（官网开发者控制台获取）", "password", "接口设置"],
-  ["shop_ids_text", "商店 ID（逗号分隔，留空 = 默认远行商店 3009）", "text", "接口设置"],
-  ["wait_ms", "接口同步等待毫秒数（wait_ms）", "number", "接口设置"],
-  ["http_timeout", "HTTP 超时（秒）", "number", "接口设置"],
-  ["max_retries", "202/网络错误重试次数", "number", "接口设置"],
-  ["retry_delay", "重试间隔（秒）", "number", "接口设置"],
-  ["log_retention_days", "文件日志保留天数（/logs 按天滚动，保存即生效）", "number", "数据保留"],
-  ["history_days", "调用历史保留天数（过期自动清理）", "number", "数据保留"],
+  ["rocom_api_key", "RoCom API Key", "password", "接口设置", "官网开发者控制台获取；留空保持已配置密钥", "full"],
+  ["shop_ids_text", "商店 ID", "text", "接口设置", "逗号分隔；留空 = 默认远行商店 3009", "full"],
+  ["wait_ms", "接口同步等待", "number", "接口设置", "毫秒（wait_ms）", ""],
+  ["http_timeout", "HTTP 超时", "number", "接口设置", "秒", ""],
+  ["max_retries", "202/网络错误重试", "number", "接口设置", "次数", ""],
+  ["retry_delay", "重试间隔", "number", "接口设置", "秒", ""],
+  ["log_retention_days", "文件日志保留", "number", "数据保留", "天；/logs 按天滚动，保存即生效", ""],
+  ["history_days", "调用历史保留", "number", "数据保留", "天；过期自动清理", ""],
 ];
 
 const SETTING_GROUPS = [
   ["接口设置", "对接洛克魔法书开放 API 的基础参数", "key"],
   ["推送行为", "标题前缀与启动行为", "send"],
-  ["通知模板", "模板已预填内置默认，可直接修改。标题：{prefix} {shop_id} {refresh_count} {max_refresh_count}；正文：{goods_count} {goods_names} {countdown} {goods_list} 等；商品条目：{index} {name} {period} {price} {limit} {total} 等；{nl} 或 \\n 表示换行（默认模板末尾的 {nl} 让每件商品之间空一行）；全天商品 {period} 显示为「全天」", "file"],
+  ["通知模板", "模板已预填内置默认，可直接修改；{nl} 或 \\n 表示换行，空字段行会自动清理；全天商品 {period} 显示为「全天」", "file"],
   ["数据保留", "文件日志与调用历史的保留天数，保存即生效", "archive"],
 ];
 
@@ -391,22 +391,31 @@ function renderSettings() {
   let html = "";
   for (const [group, desc, icon] of SETTING_GROUPS) {
     html += `<div class="group"><h3><span class="gi">${ic(icon)}</span>${esc(group)}</h3><p class="hint">${esc(desc)}</p>`;
-    for (const [key, label, type, grp] of SETTING_FIELDS) {
+    let gridOpen = false;
+    for (const [key, label, type, grp, helper, span] of SETTING_FIELDS) {
       if (grp !== group) continue;
+      if (!gridOpen) { html += `<div class="fgrid">`; gridOpen = true; }
       const ph = key === "rocom_api_key" && cfg.has_rocom_api_key ? "已配置（留空保持不变）" : "";
-      html += `<label>${label}</label><input type="${type}" id="set-${key}" value="${esc(values[key])}" placeholder="${esc(ph)}">`;
+      html += `<div${span === "full" ? ` class="full"` : ""}><label>${esc(label)}</label>` +
+        `<input type="${type}" id="set-${key}" value="${esc(values[key])}" placeholder="${esc(ph)}">` +
+        `<p class="fhint">${esc(helper)}</p></div>`;
     }
+    if (gridOpen) html += `</div>`;
     if (group === "推送行为") {
-      html += `<label>推送标题前缀（模板中 {prefix} 占位符的值）</label>
+      html += `<div class="fgrid"><div class="full"><label>推送标题前缀</label>
         <input type="text" id="set-title_prefix" value="${esc(cfg.title_prefix)}">
-        <div class="checkbox"><input type="checkbox" id="set-run-on-start" ${cfg.run_on_start ? "checked" : ""}>
+        <p class="fhint">模板中 {prefix} 占位符的值</p></div></div>
+        <div class="check"><input type="checkbox" id="set-run-on-start" ${cfg.run_on_start ? "checked" : ""}>
         启动容器时立即执行一轮（默认关闭；开启后每次重启都会先拉一次数据并按任务推送）</div>`;
     }
     if (group === "通知模板") {
       html += `
         <label>标题模板</label><textarea id="set-title-template" rows="2">${esc(tv)}</textarea>
-        <label>正文模板（Markdown）</label><textarea id="set-body-template" rows="8">${esc(bv)}</textarea>
-        <label>商品行模板（每件商品一行）</label><textarea id="set-goods-line-template" rows="2">${esc(gv)}</textarea>
+        <p class="fhint">可用：{prefix} {shop_id} {refresh_count} {max_refresh_count} {date} {goods_count}</p>
+        <label>正文模板（Markdown）</label><textarea id="set-body-template" rows="7">${esc(bv)}</textarea>
+        <p class="fhint">可用：{queried} {source} {date} {shop_id} {refresh_count} {max_refresh_count} {goods_count} {goods_names} {goods_list} {countdown}</p>
+        <label>商品行模板（每件商品一段）</label><textarea id="set-goods-line-template" rows="6">${esc(gv)}</textarea>
+        <p class="fhint">可用：{index} {name} {period} {price} {price_num} {limit} {total} {item_num} {goods_id} {nl}</p>
         <div class="tpl-actions">
           <button id="tpl-preview" class="btn">${ic("eye")}用示例数据预览</button>
           <button id="tpl-restore" class="btn">${ic("undo")}还原默认模板</button>
@@ -447,12 +456,13 @@ async function previewTemplate() {
 function renderAccount() {
   const form = $("account-form");
   if (form.contains(document.activeElement)) return;
-  form.innerHTML = `
-    <label>当前用户名</label><input type="text" id="acc-cur" value="${esc(S.auth_username || "admin")}" disabled>
-    <label>当前密码（验证身份）</label><input type="password" id="acc-old" autocomplete="current-password">
-    <label>新用户名</label><input type="text" id="acc-user" value="${esc(S.auth_username || "admin")}">
-    <label>新密码（至少 4 位）</label><input type="password" id="acc-pass" autocomplete="new-password">
-    <label>确认新密码</label><input type="password" id="acc-pass2" autocomplete="new-password">`;
+  form.innerHTML = `<div class="fgrid">
+    <div class="full"><label>当前用户名</label><input type="text" id="acc-cur" value="${esc(S.auth_username || "admin")}" disabled></div>
+    <div><label>当前密码（验证身份）</label><input type="password" id="acc-old" autocomplete="current-password"></div>
+    <div><label>新用户名</label><input type="text" id="acc-user" value="${esc(S.auth_username || "admin")}"></div>
+    <div><label>新密码（至少 4 位）</label><input type="password" id="acc-pass" autocomplete="new-password"></div>
+    <div><label>确认新密码</label><input type="password" id="acc-pass2" autocomplete="new-password"></div>
+  </div>`;
 }
 
 async function saveAccount() {
