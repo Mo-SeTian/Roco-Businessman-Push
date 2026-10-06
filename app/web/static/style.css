@@ -218,7 +218,28 @@ textarea{font-family:var(--mono);font-size:12.5px;line-height:1.7;resize:vertica
 .g-price{font-family:var(--mono);color:var(--amber-deep);font-weight:700;font-size:12px;white-space:nowrap}
 .g-tag{background:var(--amber-soft);color:var(--amber-deep);border-radius:6px;padding:0 7px;font-size:10.5px;font-weight:800;white-space:nowrap}
 .g-tag.blue{background:#E3ECFE;color:#1D4ED8}
+.g-tag.rare-tag{background:var(--red-soft);color:var(--red)}
 .g-tag.g-window{flex-basis:100%;justify-self:flex-start;width:fit-content}
+.g.rare{flex-basis:100%;background:linear-gradient(90deg,#FFF6DF,#FFFBEF);border:1px solid #EBCF9A;
+        border-radius:8px;padding:3px 8px}
+.g.rare .g-name{color:var(--amber-deep)}
+
+/* 统计：珍贵物品管理 + 排行星标 */
+.rare-manage .cnt-note{margin-left:auto;font-size:11px;color:var(--faint);font-family:var(--mono);font-weight:700}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--amber-soft);border:1px solid #F3DCA8;
+      color:var(--amber-deep);border-radius:99px;padding:3px 6px 3px 12px;font-size:12.5px;font-weight:800}
+.chip-x{border:0;background:rgba(146,64,14,.12);color:var(--amber-deep);width:18px;height:18px;border-radius:50%;
+        display:grid;place-items:center;font-size:12px;cursor:pointer;line-height:1;padding:0}
+.chip-x:hover{background:var(--red);color:#fff}
+.rare-add{display:flex;gap:8px;margin-top:12px}
+.rare-add input{flex:1;min-width:0}
+.star-btn{border:0;background:transparent;color:var(--line);padding:2px;cursor:pointer;line-height:0;
+          border-radius:6px;transition:.15s;margin-left:auto}
+.star-btn svg{width:15px;height:15px}
+.star-btn:hover{color:var(--amber)}
+.star-btn.on{color:var(--amber)}
+.star-btn.on svg{fill:var(--amber)}
 .slot-card.empty-slot{border-style:dashed;box-shadow:none;background:rgba(255,255,255,.5)}
 .slot-empty{margin-top:10px;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
             gap:7px;color:var(--faint);font-size:12.5px;padding:14px 0}

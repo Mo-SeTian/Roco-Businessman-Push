@@ -35,6 +35,7 @@ const ICONS = {
   user:'<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
   chev:'<polyline points="6 9 12 15 18 9"/>',
   chart:'<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
+  star:'<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
 };
 const ic = (name) => ICONS[name] ? `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>` : "";
 document.querySelectorAll("[data-ic]").forEach(el => { el.innerHTML = ic(el.dataset.ic); });
@@ -606,10 +607,12 @@ async function refreshHistory() {
         <div class="slot-empty">${ic("clock")}<span>无数据（未调用）</span></div>
       </div>`;
       const goods = (e.goods || []).map(g => {
+        const rare = (cfg.rare_goods || []).includes(g.name);
         const tags = [];
+        if (rare) tags.push(`<span class="g-tag rare-tag">珍贵</span>`);
         if (g.limit != null) tags.push(`<span class="g-tag">限购 ${esc(g.limit)}</span>`);
         if (g.window) tags.push(`<span class="g-tag ${g.window === "全天" ? "" : "blue"} g-window">${esc(g.window)}</span>`);
-        return `<div class="g"><span class="g-name">${esc(g.name)}</span>` +
+        return `<div class="g${rare ? " rare" : ""}"><span class="g-name">${esc(g.name)}</span>` +
           (g.price ? `<span class="g-price">${esc(g.price)}</span>` : "") + tags.join("") + `</div>`;
       }).join("") || `<div class="dim">无商品</div>`;
       return `<div class="slot-card">
@@ -797,15 +800,22 @@ async function refreshStats() {
     <div class="b"><span class="deco green">${ic("activity")}</span><div class="k">出现总次数</div><div class="v">${occur}<small>次</small></div><div class="s">全部档位商品合计</div></div>
     <div class="b"><span class="deco amber">${ic("check")}</span><div class="k">最高频物品</div><div class="v txt">${esc(list[0].name)}</div><div class="s">出现 ${list[0].count} 次 / ${list[0].days} 天</div></div>`;
 
-  const rankRows = list.map((it, i) => `
+  const rareList = cfg.rare_goods || [];
+  const rankRows = list.map((it, i) => {
+    const isRare = rareList.includes(it.name);
+    return `
     <div class="rank-row">
       <span class="rank-no">${i + 1}</span>
       <div class="rank-main">
-        <div class="rank-line"><span class="g-name">${esc(it.name)}</span><span class="rank-num">${it.count} 次</span></div>
+        <div class="rank-line"><span class="g-name">${esc(it.name)}</span>
+          <button class="star-btn${isRare ? " on" : ""}" data-name="${esc(it.name)}"
+            title="${isRare ? "取消珍贵标记" : "标记为珍贵物品"}" aria-label="${isRare ? "取消珍贵标记" : "标记为珍贵物品"}">${ic("star")}</button>
+          <span class="rank-num">${it.count} 次</span></div>
         <div class="rank-bar"><i style="width:${Math.round(it.count / maxCount * 100)}%"></i></div>
         <div class="rank-meta">出现 ${it.days} 天 · 最近 ${esc(it.last.slice(5))}${it.lastPrice ? ` · 最近价格 ${esc(it.lastPrice)}` : ""}${it.priceCount > 1 ? ` · ${it.priceCount} 种价格` : ""}</div>
       </div>
-    </div>`).join("");
+    </div>`;
+  }).join("");
 
   const maxDay = Math.max(...perDay.map(p => p.count), 1);
   const dayCols = perDay.map(p => `
@@ -816,6 +826,15 @@ async function refreshStats() {
     </div>`).join("");
 
   $("stat-body").innerHTML = `
+    <div class="card stat-card rare-manage">
+      <h3><span class="gi">${ic("star")}</span>珍贵物品管理<span class="cnt-note">${rareList.length} 个</span></h3>
+      <p class="fhint">标记后历史记录中着重显示；名称需与物品显示名完全一致，也可在下方排行中点击星号快速标记。</p>
+      <div class="chips">${rareList.map(n => `
+        <span class="chip">${esc(n)}<button class="chip-x" data-name="${esc(n)}" title="移除" aria-label="移除 ${esc(n)}">×</button></span>`).join("")
+        || `<span class="dim">还没有标记珍贵物品</span>`}</div>
+      <div class="rare-add"><input id="rare-input" placeholder="输入物品名称后回车，或点添加" autocomplete="off">
+        <button id="rare-add-btn" class="btn sm primary">${ic("plus")}添加</button></div>
+    </div>
     <div class="stats-grid">
       <div class="card stat-card">
         <h3><span class="gi">${ic("list")}</span>物品出现排行（${list.length} 种）</h3>
@@ -828,6 +847,43 @@ async function refreshStats() {
       </div>
     </div>`;
 }
+
+async function saveRareGoods(list) {
+  try {
+    await api("/api/config", { method: "POST", body: { ...buildPayload(null, ""), rare_goods: list } });
+    await refresh(true);
+    toast("珍贵物品已更新");
+    await refreshStats();
+  } catch (e) { toast("保存失败：" + e.message, 4000); }
+}
+
+async function toggleRare(name) {
+  const list = [...(cfg.rare_goods || [])];
+  const i = list.indexOf(name);
+  if (i >= 0) list.splice(i, 1); else list.push(name);
+  await saveRareGoods(list);
+}
+
+$("stat-body").addEventListener("click", async (e) => {
+  const star = e.target.closest(".star-btn");
+  if (star) { await toggleRare(star.dataset.name); return; }
+  const x = e.target.closest(".chip-x");
+  if (x) { await toggleRare(x.dataset.name); return; }
+  if (e.target.closest("#rare-add-btn")) {
+    const inp = $("rare-input");
+    const name = inp.value.trim();
+    if (!name) { toast("请输入物品名称"); return; }
+    if ((cfg.rare_goods || []).includes(name)) { toast("该物品已在珍贵列表中"); return; }
+    inp.value = "";
+    await saveRareGoods([...(cfg.rare_goods || []), name]);
+  }
+});
+$("stat-body").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && e.target.id === "rare-input") {
+    e.preventDefault();
+    $("rare-add-btn").click();
+  }
+});
 
 $("stat-refresh").onclick = () => refreshStats().catch(e => toast(e.message, 4000));
 $("stat-days").onchange = () => refreshStats().catch(e => toast(e.message, 4000));

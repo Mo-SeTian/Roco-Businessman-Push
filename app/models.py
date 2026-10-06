@@ -151,10 +151,25 @@ def _parse_shop_ids(raw: Any) -> list[str]:
     return out
 
 
+def _parse_rare_goods(raw: Any) -> list[str]:
+    """珍贵物品名单：清洗空白、去重，最多 100 个。"""
+    if isinstance(raw, str):
+        raw = [raw] if raw.strip() else []
+    if not isinstance(raw, (list, tuple)):
+        return []
+    out = []
+    for item in raw:
+        name = str(item).strip()
+        if name and name not in out:
+            out.append(name)
+    return out[:100]
+
+
 @dataclass
 class AppConfig:
     rocom_api_key: str = ""
     shop_ids: list[str] = field(default_factory=list)  # 空 = 服务端默认 3009
+    rare_goods: list[str] = field(default_factory=list)  # 珍贵物品名单（历史记录着重显示）
     wait_ms: int = 8000
     http_timeout: int = 30
     max_retries: int = 3
@@ -174,6 +189,7 @@ class AppConfig:
         return {
             "rocom_api_key": self.rocom_api_key,
             "shop_ids": list(self.shop_ids),
+            "rare_goods": list(self.rare_goods),
             "wait_ms": self.wait_ms,
             "http_timeout": self.http_timeout,
             "max_retries": self.max_retries,
@@ -219,6 +235,7 @@ class AppConfig:
         return cls(
             rocom_api_key=str(data.get("rocom_api_key") or "").strip(),
             shop_ids=_parse_shop_ids(data.get("shop_ids")),
+            rare_goods=_parse_rare_goods(data.get("rare_goods")),
             wait_ms=_int(data.get("wait_ms"), 8000),
             http_timeout=_int(data.get("http_timeout"), 30),
             max_retries=_int(data.get("max_retries"), 3),
