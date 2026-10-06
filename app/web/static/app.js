@@ -89,6 +89,8 @@ function renderAll() {
   $("user-name").textContent = S.auth_username || "admin";
   const ld = $("log-days");   // 日志页保留天数控件：用户正在编辑时不覆盖
   if (ld && !ld.matches(":focus")) ld.value = cfg.log_retention_days;
+  const hr = $("his-retention");   // 历史页保留天数控件
+  if (hr && !hr.matches(":focus")) hr.value = cfg.history_days;
 }
 
 /* ---------- 状态 ---------- */
@@ -368,14 +370,12 @@ const SETTING_FIELDS = [
   ["http_timeout", "HTTP 超时", "number", "接口设置", "秒", ""],
   ["max_retries", "202/网络错误重试", "number", "接口设置", "次数", ""],
   ["retry_delay", "重试间隔", "number", "接口设置", "秒", ""],
-  ["history_days", "调用历史保留", "number", "数据保留", "天；过期自动清理", ""],
 ];
 
 const SETTING_GROUPS = [
   ["接口设置", "对接洛克魔法书开放 API 的基础参数", "key"],
   ["推送行为", "标题前缀与启动行为", "send"],
   ["通知模板", "模板已预填内置默认，可直接修改；{nl} 或 \\n 表示换行，空字段行会自动清理；全天商品 {period} 显示为「全天」", "file"],
-  ["数据保留", "调用历史的保留天数，过期自动清理", "archive"],
 ];
 
 function renderSettings() {
@@ -496,7 +496,6 @@ async function saveSettings() {
     http_timeout: +v("http_timeout") || 30,
     max_retries: +v("max_retries") || 3,
     retry_delay: +v("retry_delay") || 20,
-    history_days: +v("history_days") || 30,
     run_on_start: $("set-run-on-start").checked,
     title_template: $("set-title-template").value,
     body_template: $("set-body-template").value,
@@ -534,6 +533,8 @@ function buildPayload(item, mode, delId) {
 /* ---------- 历史记录 ---------- */
 
 let hisShop = "";
+let hisPage = 1;
+let hisPageSize = 10;
 
 async function refreshHistory() {
   const data = await api(`/api/history?days=${$("his-days").value}`);
@@ -551,10 +552,21 @@ async function refreshHistory() {
   const dates = Object.keys(byDay).sort().reverse();
   const slots = data.slots || [];
 
+  if (!dates.length) {
+    $("history-list").innerHTML = `<div class="empty">还没有历史数据——每次成功调用接口后会自动记录（每档一条）</div>`;
+    return;
+  }
+
+  // 分页：按天切块，翻页只在当前查询范围内
+  const totalPages = Math.max(1, Math.ceil(dates.length / hisPageSize));
+  if (hisPage > totalPages) hisPage = totalPages;
+  if (hisPage < 1) hisPage = 1;
+  const pageDates = dates.slice((hisPage - 1) * hisPageSize, hisPage * hisPageSize);
+
   const iso = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
   const today = iso(new Date()), yesterday = iso(new Date(Date.now() - 86400000));
 
-  $("history-list").innerHTML = dates.length ? dates.map(day => {
+  const dayHtml = pageDates.map(day => {
     const filled = slots.filter(slot => (byDay[day] || {})[slot]).length;
     const totalGoods = slots.reduce((n, slot) => n + ((byDay[day] || {})[slot]?.count ?? 0), 0);
     const dayBadge = day === today ? ' <span class="tag">今天</span>'
@@ -584,7 +596,18 @@ async function refreshHistory() {
         <span class="day-stat">记录 ${filled}/${slots.length} 档 · 商品 ${totalGoods} 件</span></div>
       <div class="slots">${cards}</div>
     </div>`;
-  }).join("") : `<div class="empty">还没有历史数据——每次成功调用接口后会自动记录（每档一条）</div>`;
+  }).join("");
+
+  const pager = totalPages > 1 ? `<div class="pager">
+    <select id="his-page-size" class="sel" aria-label="每页天数">
+      ${[5, 10, 20, 30].map(n => `<option value="${n}" ${n === hisPageSize ? "selected" : ""}>每页 ${n} 天</option>`).join("")}
+    </select>
+    <button id="his-prev" class="btn sm" ${hisPage <= 1 ? "disabled" : ""}>‹ 上一页</button>
+    <span class="pager-info">第 ${hisPage} / ${totalPages} 页 · 共 ${dates.length} 天</span>
+    <button id="his-next" class="btn sm" ${hisPage >= totalPages ? "disabled" : ""}>下一页 ›</button>
+  </div>` : "";
+
+  $("history-list").innerHTML = dayHtml + pager;
 }
 
 /* ---------- 初始化 ---------- */
@@ -654,8 +677,25 @@ $("log-days-save").onclick = async () => {
 };
 $("log-level").onchange = () => refreshLogs().catch(e => toast(e.message, 4000));
 $("his-refresh").onclick = () => refreshHistory().catch(e => toast(e.message, 4000));
-$("his-days").onchange = () => refreshHistory().catch(e => toast(e.message, 4000));
-$("his-shop").onchange = (e) => { hisShop = e.target.value; refreshHistory().catch(err => toast(err.message, 4000)); };
+$("his-days").onchange = () => { hisPage = 1; refreshHistory().catch(e => toast(e.message, 4000)); };
+$("his-shop").onchange = (e) => { hisShop = e.target.value; hisPage = 1; refreshHistory().catch(err => toast(err.message, 4000)); };
+// 历史页保留天数：与日志页控件同款，保存即生效
+$("his-retention-save").onclick = async () => {
+  const days = +$("his-retention").value || 30;
+  try {
+    await api("/api/config", { method: "POST", body: { ...buildPayload(null, ""), history_days: days } });
+    await refresh(true);
+    toast(`调用历史保留已更新为 ${days} 天`);
+  } catch (e) { toast("保存失败：" + e.message, 4000); }
+};
+// 翻页条事件委托（翻页条随渲染重建）
+$("history-list").addEventListener("click", (e) => {
+  if (e.target.closest("#his-prev")) { hisPage--; refreshHistory().catch(err => toast(err.message, 4000)); }
+  if (e.target.closest("#his-next")) { hisPage++; refreshHistory().catch(err => toast(err.message, 4000)); }
+});
+$("history-list").addEventListener("change", (e) => {
+  if (e.target.id === "his-page-size") { hisPageSize = +e.target.value || 10; hisPage = 1; refreshHistory().catch(err => toast(err.message, 4000)); }
+});
 
 // 恢复上次所在标签页：优先 URL hash，其次 localStorage，默认「状态」
 let initialTab = decodeURIComponent(location.hash.slice(1)) || "";

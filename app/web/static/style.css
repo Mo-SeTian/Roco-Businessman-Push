@@ -219,6 +219,9 @@ textarea{font-family:var(--mono);font-size:12.5px;line-height:1.7;resize:vertica
 .slot-empty{margin-top:10px;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
             gap:7px;color:var(--faint);font-size:12.5px;padding:14px 0}
 .slot-empty svg{width:20px;height:20px;opacity:.7}
+.pager{display:flex;align-items:center;justify-content:center;gap:12px;margin:20px 0 4px;flex-wrap:wrap}
+.pager-info{font-size:12.5px;color:var(--muted);font-weight:800;font-family:var(--mono)}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none;pointer-events:none}
 
 /* ---------- 日志 ---------- */
 #log-list{max-height:64vh;overflow:auto;background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);

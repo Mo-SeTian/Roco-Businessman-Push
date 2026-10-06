@@ -87,7 +87,12 @@
   <section id="tab-history" hidden>
     <div class="row-head">
       <h2><span data-ic="history"></span>历史记录</h2>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <div class="inline-set" title="调用历史超过保留天数自动清理，保存即生效">
+          <span data-ic="archive"></span>保留
+          <input id="his-retention" type="number" min="1" max="365" aria-label="调用历史保留天数">天
+          <button id="his-retention-save" class="btn sm">保存</button>
+        </div>
         <select id="his-days" class="sel">
           <option value="7">最近 7 天</option>
           <option value="14" selected>最近 14 天</option>
@@ -97,7 +102,7 @@
         <button id="his-refresh" class="btn sm"><span data-ic="refresh"></span>刷新</button>
       </div>
     </div>
-    <p class="hint">每次成功调用接口都会按「商店 → 日期 → 档位」记录当次商品；错过或失败的档位显示为空。历史保留 <b>HISTORY_DAYS</b>（默认 30 天），存于 /data/history.json。</p>
+    <p class="hint">每次成功调用接口都会按「商店 → 日期 → 档位」记录当次商品；错过或失败的档位显示为空。历史保留天数由上方「保留」控制（默认 30 天），存于 /data/history.json。</p>
     <div id="history-list"></div>
   </section>
 
