@@ -624,9 +624,11 @@ async function refreshHistory() {
         const main = [`<span class="g-name">${esc(g.name)}</span>`];
         if (g.price) main.push(`<span class="g-price">${esc(g.price)}</span>`);
         if (g.limit != null) main.push(`<span class="g-tag">限购 ${esc(g.limit)}</span>`);
-        if (rare) main.push(`<span class="g-tag rare-tag">珍贵</span>`);
+        const win = [];
+        if (g.window) win.push(`<span class="g-tag blue">${esc(g.window)}</span>`);
+        if (rare) win.push(`<span class="g-tag rare-tag">珍贵</span>`);
         return `<div class="g${rare ? " rare" : ""}"><div class="g-main">${main.join("")}</div>` +
-          (g.window ? `<div class="g-win"><span class="g-tag blue">${esc(g.window)}</span></div>` : "") + `</div>`;
+          (win.length ? `<div class="g-win">${win.join("")}</div>` : "") + `</div>`;
       }).join("") || `<div class="dim">${merged ? "全天商品已合并至上方" : "无商品"}</div>`;
       const note = merged && shown.length ? `<div class="dim" style="margin-top:7px">另有 ${merged} 件全天商品已合并</div>` : "";
       return `<div class="slot-card">

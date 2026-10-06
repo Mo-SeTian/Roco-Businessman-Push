@@ -213,15 +213,16 @@ textarea{font-family:var(--mono);font-size:12.5px;line-height:1.7;resize:vertica
               display:flex;flex-direction:column;gap:7px;scrollbar-width:thin}
 .goods-scroll::-webkit-scrollbar{width:6px}
 .goods-scroll::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
-.g{display:flex;flex-direction:column;gap:4px;font-size:12.5px;line-height:1.5;width:fit-content;max-width:100%}
+.g{display:flex;flex-direction:column;gap:3px;font-size:12.5px;line-height:1.5;padding:3px 8px;
+   border:1px solid transparent;border-radius:8px;max-width:100%}
 .g-main{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.g-win{display:flex}
+.g-win{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
 .g-name{font-weight:800;color:var(--fg);word-break:break-all}
 .g-price{font-family:var(--mono);color:var(--amber-deep);font-weight:700;font-size:12px;white-space:nowrap}
 .g-tag{background:var(--amber-soft);color:var(--amber-deep);border-radius:6px;padding:0 7px;font-size:10.5px;font-weight:800;white-space:nowrap}
 .g-tag.blue{background:#E3ECFE;color:#1D4ED8}
 .g-tag.rare-tag{background:var(--red-soft);color:var(--red)}
-.g.rare{background:linear-gradient(90deg,#FFF6DF,#FFFBEF);border:1px solid #EBCF9A;border-radius:8px;padding:3px 9px}
+.g.rare{background:linear-gradient(90deg,#FFF6DF,#FFFBEF);border-color:#EBCF9A}
 .g.rare .g-name{color:var(--amber-deep)}
 .all-day-strip{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--card);
                border:1.5px solid var(--line);border-left:4px solid var(--amber);border-radius:14px;
