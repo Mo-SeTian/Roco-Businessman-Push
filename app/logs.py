@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from collections import deque
 from datetime import datetime
 from logging.handlers import TimedRotatingFileHandler
@@ -57,7 +58,14 @@ def set_file_target(path: str | None, error: str | None = None) -> None:
 
 
 def file_logging_status() -> dict:
-    return {"path": file_path, "error": file_error}
+    """写入路径 + 当前文件大小（字节）：供 WebUI 日志页诊断容器挂载是否真正可写。"""
+    size = None
+    if file_path and not file_error:
+        try:
+            size = os.path.getsize(file_path)
+        except OSError:
+            size = None
+    return {"path": file_path, "error": file_error, "size": size}
 
 
 def set_file_retention(days: int) -> None:

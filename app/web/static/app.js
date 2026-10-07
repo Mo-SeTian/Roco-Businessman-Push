@@ -215,7 +215,7 @@ function editTask(id) {
   $("task-editor").innerHTML = `
     <h2>${ic("send")}${id ? "编辑任务" : "新建任务"}</h2>
     <label>任务名称</label><input type="text" id="te-name" value="${esc(t.name)}" placeholder="例如：早间推送">
-    <label>触发时间（HH:MM，回车或逗号添加，可多个）</label>
+    <label>触发时间（时间选择器选好点「添加」，可多个）</label>
     <div class="time-chips" id="te-times-box"></div>
     <label>推送到哪些渠道</label>
     <div class="checks">${cfg.channels.map(c => `
@@ -241,7 +241,8 @@ function renderTeTimes() {
   const chips = teTimes.map(t => `
     <span class="chip">${esc(t)}<button type="button" class="chip-x" data-time="${esc(t)}" title="移除">×</button></span>`).join("");
   box.innerHTML = chips + `
-    <input id="te-time-input" placeholder="09:30 回车添加" autocomplete="off">
+    <input id="te-time-input" type="time" value="08:05" aria-label="选择触发时间">
+    <button type="button" class="btn sm primary" id="te-time-add">添加</button>
     <button type="button" class="btn sm" id="te-times-default">填默认四档</button>`;
   $("te-time-input").focus();
 }
@@ -254,6 +255,12 @@ function addTime(v) {
   teTimes.push(t);
   teTimes.sort();
   renderTeTimes();
+}
+
+function addTimeFromInput() {
+  const inp = $("te-time-input");
+  if (!inp || !inp.value) { toast("请先在时间选择器里选择时间"); return; }
+  addTime(inp.value);
 }
 
 async function saveTask() {
@@ -332,7 +339,8 @@ async function refreshLogs() {
     st.classList.add("warn");
     st.hidden = false;
   } else if (fl.path) {
-    st.textContent = "文件日志写入 " + fl.path + "，按天滚动";
+    const size = typeof fl.size === "number" ? `（当前 ${(fl.size / 1024).toFixed(1)} KB）` : "";
+    st.textContent = `文件日志写入 ${fl.path}${size}，按天滚动——宿主机挂载目录里应有同名文件`;
     st.classList.remove("warn");
     st.hidden = false;
   } else {
@@ -1029,16 +1037,17 @@ $("stat-export").onclick = () => {
 
 /* ---------- 编辑器弹窗内的事件 ---------- */
 
-// 任务触发时间 chips
+// 任务触发时间 chips（时间选择器）
 $("task-editor").addEventListener("click", (e) => {
   const x = e.target.closest(".chip-x");
   if (x) { teTimes = teTimes.filter(t => t !== x.dataset.time); renderTeTimes(); return; }
+  if (e.target.closest("#te-time-add")) { addTimeFromInput(); return; }
   if (e.target.closest("#te-times-default")) { teTimes = ["08:05", "12:05", "16:05", "20:05"]; renderTeTimes(); }
 });
 $("task-editor").addEventListener("keydown", (e) => {
-  if (e.target.id === "te-time-input" && (e.key === "Enter" || e.key === ",")) {
+  if (e.target.id === "te-time-input" && e.key === "Enter") {
     e.preventDefault();
-    addTime(e.target.value);
+    addTimeFromInput();
   }
 });
 

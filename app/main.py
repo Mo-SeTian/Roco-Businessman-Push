@@ -56,6 +56,9 @@ def setup_logging(level: str = "INFO", log_dir: str = "logs", retention_days: in
         from . import logs as app_logs
         app_logs.file_handler = file_handler
         app_logs.set_file_target(str(Path(log_dir) / "rocom-push.log"))
+        # 启动即写一条证明行：文件不存在 = 目录不可写/未创建，状态页会给出红色原因
+        logging.getLogger("main").info(
+            "文件日志已启用：%s（按天滚动，保留 %d 天）", Path(log_dir) / "rocom-push.log", retention_days)
     except OSError as exc:
         from . import logs as app_logs
         app_logs.set_file_target(None, f"{exc}（目录：{log_dir}）")
