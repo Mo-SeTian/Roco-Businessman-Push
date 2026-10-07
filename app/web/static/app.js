@@ -215,7 +215,7 @@ function editTask(id) {
   $("task-editor").innerHTML = `
     <h2>${ic("send")}${id ? "编辑任务" : "新建任务"}</h2>
     <label>任务名称</label><input type="text" id="te-name" value="${esc(t.name)}" placeholder="例如：早间推送">
-    <label>触发时间（时间选择器选好点「添加」，可多个）</label>
+    <label>触发时间（点「添加时间」选择时分，可多个）</label>
     <div class="time-chips" id="te-times-box"></div>
     <label>推送到哪些渠道</label>
     <div class="checks">${cfg.channels.map(c => `
@@ -241,10 +241,8 @@ function renderTeTimes() {
   const chips = teTimes.map(t => `
     <span class="chip">${esc(t)}<button type="button" class="chip-x" data-time="${esc(t)}" title="移除">×</button></span>`).join("");
   box.innerHTML = chips + `
-    <input id="te-time-input" type="time" value="08:05" aria-label="选择触发时间">
-    <button type="button" class="btn sm primary" id="te-time-add">添加</button>
+    <button type="button" class="btn sm primary" id="te-time-add">${ic("clock")}添加时间</button>
     <button type="button" class="btn sm" id="te-times-default">填默认四档</button>`;
-  $("te-time-input").focus();
 }
 
 function addTime(v) {
@@ -257,10 +255,67 @@ function addTime(v) {
   renderTeTimes();
 }
 
-function addTimeFromInput() {
-  const inp = $("te-time-input");
-  if (!inp || !inp.value) { toast("请先在时间选择器里选择时间"); return; }
-  addTime(inp.value);
+/* ---------- 自定义时分选择器（锚定弹出，替代原生 type=time） ---------- */
+
+let tpHour = 8;
+
+function openTimePicker(anchor) {
+  closeTimePicker();
+  const sel = teTimes[teTimes.length - 1] || "08:05";
+  tpHour = parseInt(sel.slice(0, 2), 10);
+  const selMin = sel.slice(3);
+  const pop = document.createElement("div");
+  pop.id = "time-pop";
+  pop.innerHTML = `
+    <div class="tp-col"><div class="tp-head">时</div>
+      ${Array.from({ length: 24 }, (_, h) => `
+        <button type="button" class="tp-item${h === tpHour ? " on" : ""}" data-h="${h}">${String(h).padStart(2, "0")}</button>`).join("")}
+    </div>
+    <div class="tp-col"><div class="tp-head">分</div>
+      ${Array.from({ length: 60 }, (_, m) => `
+        <button type="button" class="tp-item${String(m).padStart(2, "0") === selMin ? " on" : ""}" data-m="${m}">${String(m).padStart(2, "0")}</button>`).join("")}
+    </div>`;
+  document.body.appendChild(pop);
+  // 定位：锚点正下方，右/下越界时回收
+  const rect = anchor.getBoundingClientRect();
+  let left = Math.min(rect.left, window.innerWidth - pop.offsetWidth - 12);
+  let top = rect.bottom + 6;
+  if (top + pop.offsetHeight > window.innerHeight - 12) top = rect.top - pop.offsetHeight - 6;
+  pop.style.left = Math.max(8, left) + "px";
+  pop.style.top = Math.max(8, top) + "px";
+  // 滚动到当前选中项
+  pop.querySelectorAll(".tp-col").forEach(col => {
+    const on = col.querySelector(".tp-item.on");
+    if (on) col.scrollTop = Math.max(0, on.offsetTop - col.clientHeight / 2 + on.offsetHeight / 2);
+  });
+  pop.addEventListener("click", (e) => {
+    const item = e.target.closest(".tp-item");
+    if (!item) return;
+    if (item.dataset.h !== undefined) {
+      tpHour = +item.dataset.h;
+      pop.querySelectorAll(".tp-item").forEach(b => { if (b.dataset.h !== undefined) b.classList.toggle("on", b === item); });
+      return;
+    }
+    addTime(`${String(tpHour).padStart(2, "0")}:${String(+item.dataset.m).padStart(2, "0")}`);
+    closeTimePicker();
+  });
+  setTimeout(() => {
+    document.addEventListener("click", tpOutside);
+    // 不用 capture：选择器列内部的滚动定位不能误触发关闭
+    window.addEventListener("scroll", closeTimePicker);
+    window.addEventListener("resize", closeTimePicker);
+  }, 0);
+}
+
+function tpOutside(e) {
+  if (!e.target.closest("#time-pop") && !e.target.closest("#te-time-add")) closeTimePicker();
+}
+
+function closeTimePicker() {
+  document.getElementById("time-pop")?.remove();
+  document.removeEventListener("click", tpOutside);
+  window.removeEventListener("scroll", closeTimePicker, true);
+  window.removeEventListener("resize", closeTimePicker);
 }
 
 async function saveTask() {
@@ -785,6 +840,7 @@ $("account-cancel").onclick = () => $("account-modal").hidden = true;
 $("account-modal").addEventListener("click", (e) => { if (e.target === e.currentTarget) $("account-modal").hidden = true; });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
+    closeTimePicker();
     $("confirm-overlay").hidden = true;
     $("account-modal").hidden = true;
     $("task-modal").hidden = true;
@@ -1037,18 +1093,17 @@ $("stat-export").onclick = () => {
 
 /* ---------- 编辑器弹窗内的事件 ---------- */
 
-// 任务触发时间 chips（时间选择器）
+// 任务触发时间 chips（自定义时分选择器）
 $("task-editor").addEventListener("click", (e) => {
   const x = e.target.closest(".chip-x");
-  if (x) { teTimes = teTimes.filter(t => t !== x.dataset.time); renderTeTimes(); return; }
-  if (e.target.closest("#te-time-add")) { addTimeFromInput(); return; }
-  if (e.target.closest("#te-times-default")) { teTimes = ["08:05", "12:05", "16:05", "20:05"]; renderTeTimes(); }
-});
-$("task-editor").addEventListener("keydown", (e) => {
-  if (e.target.id === "te-time-input" && e.key === "Enter") {
-    e.preventDefault();
-    addTimeFromInput();
+  if (x) { teTimes = teTimes.filter(t => t !== x.dataset.time); renderTeTimes(); closeTimePicker(); return; }
+  const add = e.target.closest("#te-time-add");
+  if (add) {
+    if (document.getElementById("time-pop")) closeTimePicker();
+    else openTimePicker(add);
+    return;
   }
+  if (e.target.closest("#te-times-default")) { teTimes = ["08:05", "12:05", "16:05", "20:05"]; renderTeTimes(); closeTimePicker(); }
 });
 
 // 渠道密钥显示/隐藏

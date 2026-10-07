@@ -253,9 +253,20 @@ textarea{font-family:var(--mono);font-size:12.5px;line-height:1.7;resize:vertica
 .editor .actions{margin-bottom:0}
 .time-chips{display:flex;flex-wrap:wrap;gap:8px;align-items:center;border:1.5px solid var(--line);
             border-radius:var(--radius-sm);padding:8px 10px;background:var(--card)}
-.time-chips input{flex:1;min-width:110px;border:1.5px solid transparent;border-radius:8px;padding:5px 10px;
-                  font-size:13px;font-family:var(--mono);background:transparent;color:var(--fg)}
-.time-chips input:focus{outline:none;border-color:var(--amber);background:var(--card)}
+
+/* 自定义时分选择器 */
+#time-pop{position:fixed;z-index:80;background:var(--card);border:1.5px solid var(--line);border-radius:14px;
+          box-shadow:0 14px 34px rgba(41,37,36,.18);padding:10px;display:flex;gap:8px}
+.tp-col{width:64px;height:224px;overflow-y:auto;border:1px solid var(--line-soft);border-radius:10px;
+        padding:4px;scrollbar-width:thin}
+.tp-col::-webkit-scrollbar{width:6px}
+.tp-col::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+.tp-head{font-size:10.5px;color:var(--faint);text-align:center;padding:1px 0 4px;font-weight:900;
+         position:sticky;top:0;background:var(--card)}
+.tp-item{display:block;width:100%;text-align:center;padding:3px 0;border-radius:7px;border:0;background:transparent;
+         font-family:var(--mono);font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;transition:.12s}
+.tp-item:hover{background:var(--amber-soft);color:var(--amber-deep)}
+.tp-item.on{background:var(--amber);color:#fff;font-weight:900}
 .secret-wrap{position:relative}
 .secret-wrap input{padding-right:42px}
 .eye-btn{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:transparent;
