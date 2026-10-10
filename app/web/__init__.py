@@ -204,6 +204,9 @@ def create_app(store: AppConfigStore | None = None, scheduler: SchedulerService 
         ok, detail = send_instance(inst, title, md, f"{inst.name} 渠道测试推送（{now_text}）")
         return JSONResponse({"ok": ok, "message": detail}, status_code=200 if ok else 400)
 
+    async def api_call_stats(_=Depends(_api_guard)):
+        return app_scheduler.api_stats.query()
+
     async def api_history(request: Request, _=Depends(_api_guard)):
         try:
             days = min(int(request.query_params.get("days", "14")), 90)
@@ -242,7 +245,10 @@ def create_app(store: AppConfigStore | None = None, scheduler: SchedulerService 
 
     async def api_run_task(request: Request, _=Depends(_api_guard)):
         payload = await request.json()
-        message = app_scheduler.run_task_now(str(payload.get("id", "")).strip())
+        source = payload.get("source", "api")
+        if source not in ("api", "history"):
+            raise HTTPException(status_code=400, detail="无效的数据来源")
+        message = app_scheduler.run_task_now(str(payload.get("id", "")).strip(), source=source)
         return JSONResponse({"ok": True, "message": message})
 
     async def api_run_all(_=Depends(_api_guard)):
@@ -262,6 +268,7 @@ def create_app(store: AppConfigStore | None = None, scheduler: SchedulerService 
     app.add_api_route("/api/run-task", api_run_task, methods=["POST"])
     app.add_api_route("/api/run-all", api_run_all, methods=["POST"])
     app.add_api_route("/api/logs", api_logs, methods=["GET"])
+    app.add_api_route("/api/call-stats", api_call_stats, methods=["GET"])
     app.add_api_route("/api/history", api_history, methods=["GET"])
     app.add_api_route("/api/template-preview", api_template_preview, methods=["POST"])
     app.mount("/static", StaticFiles(directory=str(PACKAGE_DIR / "static")), name="static")

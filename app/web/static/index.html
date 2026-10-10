@@ -31,6 +31,7 @@
     <button data-tab="settings"><span data-ic="sliders"></span>全局设置</button>
     <button data-tab="history"><span data-ic="history"></span>历史记录</button>
     <button data-tab="stats"><span data-ic="chart"></span>统计</button>
+    <button data-tab="api-stats"><span data-ic="activity"></span>API 调用</button>
     <button data-tab="logs"><span data-ic="file"></span>日志</button>
   </nav>
 </header>
@@ -135,6 +136,16 @@
     <p class="hint">基于历史记录聚合统计（未调用的档位不计入）；切换范围或商店后自动重新统计。</p>
     <div class="bento" id="stat-kpis"></div>
     <div id="stat-body"></div>
+  </section>
+
+  <section id="tab-api-stats" hidden>
+    <div class="row-head">
+      <h2><span data-ic="activity"></span>API 调用统计</h2>
+      <button id="api-stats-refresh" class="btn sm"><span data-ic="refresh"></span>刷新</button>
+    </div>
+    <p class="hint">统计远行商人数据接口的累计请求次数，包含失败请求和每次重试。使用历史数据且未请求接口时不计数。启用此功能后开始累计，重启后保留。</p>
+    <p id="api-stats-total" class="hint"></p>
+    <div id="api-stats-list" class="card table-card" style="overflow-x:auto"></div>
   </section>
 
   <!-- ============ 日志 ============ -->

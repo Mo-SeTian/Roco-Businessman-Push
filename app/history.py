@@ -13,6 +13,7 @@ import os
 import re
 import tempfile
 import threading
+from copy import deepcopy
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -93,7 +94,8 @@ class HistoryStore:
         """记录一次成功拉取。shop_key 为商店 ID 或 "default"。"""
         try:
             norm = fmt.normalize(payload)
-            meta = payload.get("meta") if isinstance(payload.get("meta"), dict) else {}
+            data = payload.get("data") or {}
+            meta = data.get("meta") if isinstance(data.get("meta"), dict) else {}
 
             queried_dt = None
             raw_queried = str(meta.get("queried_at") or "")
@@ -107,6 +109,7 @@ class HistoryStore:
             queried_dt = queried_dt or datetime.now().astimezone()
 
             entry = {
+                "payload": deepcopy(payload),
                 "queried": queried_dt.strftime("%H:%M:%S"),
                 "source": str(meta.get("source") or ""),
                 "refresh": _refresh_text(norm),
@@ -130,6 +133,16 @@ class HistoryStore:
         except Exception:  # noqa: BLE001 历史记录失败绝不影响推送主流程
             log.warning("历史记录写入失败（商店 %s）", shop_key, exc_info=True)
 
+    def current_payload(self, shop_key: str, now: datetime) -> dict | None:
+        """只复用当天当前档位的完整数据；旧版展示记录交由调用方重新获取。"""
+        if now.hour < 8:
+            return None
+        slot = fmt._slot_start(now).strftime("%H:%M")
+        with self._lock:
+            entry = self._data.get(shop_key, {}).get(now.date().isoformat(), {}).get(slot, {})
+            payload = entry.get("payload")
+            return deepcopy(payload) if isinstance(payload, dict) else None
+
     def set_days(self, days: int) -> None:
         self.days = max(1, int(days))
 
@@ -139,7 +152,9 @@ class HistoryStore:
         with self._lock:
             out: dict[str, dict] = {}
             for shop, days_map in self._data.items():
-                filtered = {d: v for d, v in days_map.items() if str(d) >= cutoff}
+                filtered = {d: {slot: {k: v for k, v in entry.items() if k != "payload"}
+                                for slot, entry in slots.items()}
+                            for d, slots in days_map.items() if str(d) >= cutoff}
                 if filtered:
                     out[shop] = filtered
             return out

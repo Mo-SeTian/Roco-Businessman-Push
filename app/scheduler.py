@@ -17,6 +17,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from .api_stats import APIStatsStore
 from .channels import send_instance
 from .format import build_message
 from .models import AppConfig, TaskConfig
@@ -30,6 +31,7 @@ class SchedulerService:
     def __init__(self, store, state_store: StateStore, history_store=None):
         self.store = store  # AppConfigStore
         self.state_store = state_store
+        self.api_stats = APIStatsStore(str(Path(state_store.path).parent / "api_stats.sqlite3"))
         self.history = history_store  # HistoryStore，可为 None
         self.state: dict[str, Any] = {
             "running": False,
@@ -137,15 +139,18 @@ class SchedulerService:
 
     # ---- 执行 ----
 
-    def run_task_now(self, task_id: str) -> str:
+    def run_task_now(self, task_id: str, source: str = "api") -> str:
         """手动执行指定任务（无视时间表，强制推送）。"""
-        return self._run_locked("手动执行", force=True, task_id=task_id)
+        if source not in ("api", "history"):
+            raise ValueError("无效的数据来源")
+        reason = "手动执行（历史优先）" if source == "history" else "手动执行（重新获取）"
+        return self._run_locked(reason, force=True, task_id=task_id, source=source)
 
     def run_all_now(self) -> str:
         return self._run_locked("手动执行", force=True)
 
     def _run_locked(self, reason: str, *, force: bool, task_id: str | None = None,
-                    due_time: str | None = None) -> str:
+                    due_time: str | None = None, source: str = "api") -> str:
         with self._run_lock:
             if self.state["in_progress"]:
                 return "已有任务正在执行，请稍候"
@@ -168,7 +173,7 @@ class SchedulerService:
                     if not tasks:
                         self.state["last_message"] = "没有启用的任务"
                         return self.state["last_message"]
-                self._fire(cfg, tasks, force=force, reason=reason)
+                self._fire(cfg, tasks, force=force, reason=reason, source=source)
                 return self.state["last_message"]
             except Exception as exc:  # noqa: BLE001
                 log.exception("执行异常")
@@ -178,7 +183,7 @@ class SchedulerService:
                 self.state["in_progress"] = False
                 self.state["last_fire_at"] = datetime.now().isoformat(sep=" ", timespec="seconds")
 
-    def _fire(self, cfg: AppConfig, tasks: list[TaskConfig], *, force: bool, reason: str = "") -> None:
+    def _fire(self, cfg: AppConfig, tasks: list[TaskConfig], *, force: bool, reason: str = "", source: str = "api") -> None:
         shop_keys = cfg.shop_ids or [None]
         client = MerchantClient(
             cfg.rocom_api_key,
@@ -187,12 +192,21 @@ class SchedulerService:
             http_timeout=cfg.http_timeout,
             max_retries=cfg.max_retries,
             retry_delay=cfg.retry_delay,
+            api_stats=self.api_stats,
         )
 
         payloads: dict[str, dict] = {}
         errors: dict[str, str] = {}
+        now = datetime.now().astimezone()
         for shop in shop_keys:
             key = shop or "default"
+            if source == "history":
+                cached = self.history.current_payload(key, now) if self.history is not None else None
+                if cached is not None:
+                    payloads[key] = cached
+                    log.info("商店 %s 使用当前时段历史记录", key)
+                    continue
+                log.info("商店 %s 当前时段无完整历史记录，自动请求接口", key)
             log.info("开始拉取远行商人数据（商店：%s）", key)
             try:
                 payloads[key] = client.fetch_merchant(shop)

@@ -11,12 +11,16 @@ from __future__ import annotations
 import logging
 import time
 
+import requests
+
+from .api_stats import APIStatsStore
 from .channels.common import new_logged_session
 
 log = logging.getLogger("rocom")
 
 SUCCESS_CODES = (0, 200)  # 业务包装 code 的成功值
 PENDING_HTTP = 202  # 查询服务尚未就绪
+RETRYABLE_HTTP = (500, 502, 503, 504)
 
 
 class RocomAPIError(RuntimeError):
@@ -33,7 +37,9 @@ class MerchantClient:
         http_timeout: int = 30,
         max_retries: int = 3,
         retry_delay: int = 20,
+        api_stats: APIStatsStore | None = None,
     ) -> None:
+        self.api_stats = api_stats
         self.api_base = api_base.rstrip("/")
         self.wait_ms = wait_ms
         self.http_timeout = http_timeout
@@ -49,48 +55,50 @@ class MerchantClient:
         )
 
     def fetch_merchant(self, shop_id: str | None = None) -> dict:
-        """拉取远行商人信息，带 202/网络错误重试。返回响应 JSON（含 code/message/data/goods_mapping）。"""
+        """拉取商人信息，对 202、暂时性服务错误和网络异常进行有限次数重试。"""
         params: dict[str, str] = {}
         if shop_id:
             params["shop_id"] = shop_id
         if self.wait_ms > 0:
             params["wait_ms"] = str(self.wait_ms)
-        url = f"{self.api_base}/api/v1/games/rocom/ingame/merchant/info"
+        path = "/api/v1/games/rocom/ingame/merchant/info"
+        url = f"{self.api_base}{path}"
 
         last_err: Exception | None = None
         for attempt in range(1, self.max_retries + 1):
+            if self.api_stats is not None:
+                self.api_stats.record("GET", path)
             try:
                 resp = self.session.get(
                     url, params=params, timeout=self.http_timeout
                 )
             except requests.RequestException as exc:
                 last_err = exc
-                log.warning("请求失败(第 %d 次): %s", attempt, exc)
             else:
                 if resp.status_code == PENDING_HTTP:
-                    log.warning(
-                        "数据未就绪(HTTP 202, 第 %d 次)，%ds 后重试", attempt, self.retry_delay
-                    )
-                    time.sleep(self.retry_delay)
-                    continue
-                if resp.status_code >= 400:
+                    last_err = RocomAPIError("数据未就绪(HTTP 202)")
+                elif resp.status_code in RETRYABLE_HTTP:
+                    last_err = RocomAPIError(f"HTTP {resp.status_code}: {resp.text[:300]}")
+                elif resp.status_code >= 400:
                     raise RocomAPIError(
                         f"HTTP {resp.status_code}: {resp.text[:300]}"
                     )
-                try:
-                    payload = resp.json()
-                except ValueError as exc:
-                    raise RocomAPIError(f"响应不是 JSON: {resp.text[:300]}") from exc
-                code = payload.get("code")
-                if code in SUCCESS_CODES:
-                    return payload
-                if code == PENDING_HTTP:  # 业务层 202：数据仍在查询中
-                    log.warning("数据未就绪(code=202, 第 %d 次)", attempt)
-                    time.sleep(self.retry_delay)
-                    continue
-                raise RocomAPIError(
-                    f"接口返回失败 code={code} message={payload.get('message')!r}"
-                )
+                else:
+                    try:
+                        payload = resp.json()
+                    except ValueError as exc:
+                        raise RocomAPIError(f"响应不是 JSON: {resp.text[:300]}") from exc
+                    code = payload.get("code")
+                    if code in SUCCESS_CODES:
+                        return payload
+                    if code == PENDING_HTTP:  # 业务层 202：数据仍在查询中
+                        last_err = RocomAPIError("数据未就绪(code=202)")
+                    else:
+                        raise RocomAPIError(
+                            f"接口返回失败 code={code} message={payload.get('message')!r}"
+                        )
             if attempt < self.max_retries:
+                log.warning("请求失败(第 %d/%d 次): %s；%ds 后重试",
+                            attempt, self.max_retries, last_err, self.retry_delay)
                 time.sleep(self.retry_delay)
-        raise RocomAPIError(f"重试 {self.max_retries} 次后仍失败: {last_err}")
+        raise RocomAPIError(f"尝试 {self.max_retries} 次后仍失败: {last_err}")

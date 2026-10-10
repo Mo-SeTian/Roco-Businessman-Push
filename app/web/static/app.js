@@ -199,7 +199,7 @@ function renderTasks() {
           <span>${ic("bell")}${chNames.length ? esc(chNames.join("、")) : "未选渠道"}</span></div>
       </div>
       <div class="ops">
-        <button class="btn sm" onclick="runTask('${t.id}')">${ic("play")}立即执行</button>
+        <button class="btn sm" onclick="chooseTaskSource('${t.id}')">${ic("play")}立即执行</button>
         <button class="btn sm" onclick="editTask('${t.id}')">${ic("edit")}编辑</button>
         <button class="btn sm danger" onclick="delTask('${t.id}')">${ic("trash")}删除</button>
       </div>
@@ -344,8 +344,23 @@ function delTask(id) {
   }, { danger: true, okText: "删除" });
 }
 
-async function runTask(id) {
-  try { const r = await api("/api/run-task", { method: "POST", body: { id } }); toast(r.message); await refresh(true); }
+function chooseTaskSource(id) {
+  $("task-editor").innerHTML = `
+    <h2>立即执行</h2>
+    <p>选择本次推送的数据来源。重新获取成功后，会同步更新对应时段的历史记录。</p>
+    <p>使用当前时段历史记录时，若没有完整记录，将自动请求接口。</p>
+    <div class="actions">
+      <button class="btn primary" onclick="runTask('${id}', 'api')">重新获取并推送</button>
+      <button class="btn" onclick="runTask('${id}', 'history')">使用当前时段历史并推送</button>
+      <button class="btn" onclick="$('task-modal').hidden=true">取消</button>
+    </div>`;
+  $("task-modal").hidden = false;
+  $("task-editor").querySelector("button").focus();
+}
+
+async function runTask(id, source = "api") {
+  $("task-modal").hidden = true;
+  try { const r = await api("/api/run-task", { method: "POST", body: { id, source } }); toast(r.message); await refresh(true); }
   catch (e) { toast(e.message, 4000); }
 }
 
@@ -524,7 +539,7 @@ const SETTING_FIELDS = [
   ["shop_ids_text", "商店 ID", "text", "接口设置", "逗号分隔；留空 = 默认远行商店 3009", "full"],
   ["wait_ms", "接口同步等待", "number", "接口设置", "毫秒（wait_ms）", ""],
   ["http_timeout", "HTTP 超时", "number", "接口设置", "秒", ""],
-  ["max_retries", "202/网络错误重试", "number", "接口设置", "次数", ""],
+  ["max_retries", "接口最大尝试次数", "number", "接口设置", "含首次请求；202、500/502/503/504、网络异常自动重试", ""],
   ["retry_delay", "重试间隔", "number", "接口设置", "秒", ""],
 ];
 
@@ -806,6 +821,7 @@ function activateTab(name) {
   if (name === "logs") refreshLogs().catch(() => {});
   if (name === "history") refreshHistory().catch(() => {});
   if (name === "stats") refreshStats().catch(() => {});
+  if (name === "api-stats") refreshAPIStats().catch(e => toast(e.message, 4000));
   history.replaceState(null, "", "#" + name);   // 刷新后停留在当前页
   try { localStorage.setItem("rocom_tab", name); } catch (_) {}
   return true;
@@ -848,6 +864,16 @@ document.addEventListener("keydown", (e) => {
     userDrop.hidden = true;
   }
 });
+async function refreshAPIStats() {
+  const data = await api("/api/call-stats");
+  $("api-stats-total").textContent = `累计请求 ${data.total} 次 · ${data.items.length} 个接口`;
+  $("api-stats-list").innerHTML = data.items.length ? `
+    <table><thead><tr><th>方法</th><th>接口路径</th><th>调用次数</th><th>最后调用时间</th></tr></thead>
+      <tbody>${data.items.map(row => `<tr><td>${esc(row.method)}</td><td>${esc(row.path)}</td>
+        <td>${esc(row.count)}</td><td>${esc(row.last_called_at)}</td></tr>`).join("")}</tbody>
+    </table>` : '<div class="empty">暂无 API 调用记录</div>';
+}
+$("api-stats-refresh").onclick = () => refreshAPIStats().catch(e => toast(e.message, 4000));
 $("log-filter").addEventListener("input", renderLogRows);
 $("run-all").onclick = async () => {
   try { const r = await api("/api/run-all", { method: "POST" }); toast(r.message); await refresh(true); }
