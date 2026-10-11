@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from . import auth as web_auth
@@ -187,6 +187,28 @@ def create_app(store: AppConfigStore | None = None, scheduler: SchedulerService 
 
     # ---- 操作 ----
 
+    async def api_config_export(_=Depends(_api_guard)):
+        body = json.dumps(app_store.export_config(), ensure_ascii=False, indent=2)
+        fname = f"rocom-config-{datetime.now().strftime('%Y%m%d-%H%M%S')}.json"
+        return Response(body, media_type="application/json", headers={
+            "Content-Disposition": f'attachment; filename="{fname}"',
+            "Cache-Control": "no-store",
+        })
+
+    async def api_config_import(request: Request, _=Depends(_api_guard)):
+        try:
+            data = await request.json()
+        except Exception:  # noqa: BLE001
+            raise HTTPException(status_code=400, detail="文件不是合法的 JSON")
+        try:
+            cfg = app_store.import_config(data)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except OSError as exc:
+            raise HTTPException(status_code=500, detail=f"保存失败：{exc}") from exc
+        app_scheduler.wake()
+        return JSONResponse({"ok": True, "issues": cfg.issues})
+
     async def api_test_channel(request: Request, _=Depends(_api_guard)):
         payload = await request.json()
         draft = payload.get("instance") if isinstance(payload.get("instance"), dict) else {}
@@ -278,6 +300,8 @@ def create_app(store: AppConfigStore | None = None, scheduler: SchedulerService 
     app.add_api_route("/api/state", api_state, methods=["GET"])
     app.add_api_route("/api/account", api_change_account, methods=["POST"])
     app.add_api_route("/api/config", api_save_config, methods=["POST"])
+    app.add_api_route("/api/config/export", api_config_export, methods=["GET"])
+    app.add_api_route("/api/config/import", api_config_import, methods=["POST"])
     app.add_api_route("/api/test-channel", api_test_channel, methods=["POST"])
     app.add_api_route("/api/run-task", api_run_task, methods=["POST"])
     app.add_api_route("/api/run-all", api_run_all, methods=["POST"])

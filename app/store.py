@@ -210,6 +210,27 @@ class AppConfigStore:
             payload["console_auth"] = auth
             self._write(payload)
 
+    # ---- 备份 / 恢复 ----
+
+    def export_config(self) -> dict:
+        """当前生效配置的完整导出（含渠道密钥与登录凭据哈希，供备份/迁移）。"""
+        return self.load().to_dict()
+
+    def import_config(self, data: dict) -> AppConfig:
+        """整体恢复配置文件；登录凭据保持当前值，避免导入旧备份后无法登录。"""
+        if not isinstance(data, dict):
+            raise ValueError("配置文件顶层必须是 JSON 对象")
+        try:
+            cfg = AppConfig.from_mapping(data)
+        except Exception as exc:  # noqa: BLE001 数据形态异常（元素非对象等）统一转为可提示的错误
+            raise ValueError(f"配置文件无法解析：{exc}") from exc
+        with self._lock:
+            current = self._read_payload()
+            cfg.console_auth = dict((current or {}).get("console_auth")
+                                    or _default_console_auth(self.env))
+            self._write(cfg.to_dict())
+        return cfg
+
     def _write(self, payload: dict) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         payload = {k: v for k, v in payload.items() if k != "has_rocom_api_key"}

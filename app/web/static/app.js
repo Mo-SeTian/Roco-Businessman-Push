@@ -40,6 +40,7 @@ const ICONS = {
   star:'<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
   sun:'<circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/>',
   download:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
+  upload:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',
 };
 const ic = (name) => ICONS[name] ? `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>` : "";
 document.querySelectorAll("[data-ic]").forEach(el => { el.innerHTML = ic(el.dataset.ic); });
@@ -884,6 +885,41 @@ $("run-all").onclick = async () => {
 $("task-add").onclick = () => editTask(null);
 $("ch-add").onclick = () => editChannel(null);
 $("settings-save").onclick = saveSettings;
+
+// ---- 配置备份：导出 / 导入 ----
+$("config-export-btn").onclick = () => {
+  const a = document.createElement("a");
+  a.href = "/api/config/export";
+  a.download = "";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+};
+$("config-import-btn").onclick = () => $("config-import-file").click();
+$("config-import-file").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  e.target.value = "";  // 清空以便可重复选择同一文件
+  if (!file) return;
+  let data;
+  try { data = JSON.parse(await file.text()); }
+  catch { toast("文件不是合法的 JSON", 4000); return; }
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    toast("配置文件格式不对：顶层应为 JSON 对象", 4000); return;
+  }
+  const nCh = (data.channels || []).length, nTask = (data.tasks || []).length;
+  confirmBox(
+    `将导入 ${nCh} 个渠道、${nTask} 个任务，并覆盖当前全部设置（接口参数、模板、珍贵物品等）。\n登录账号密码保持当前不变。\n操作立即生效且不可撤销，建议先导出当前配置留底。`,
+    async () => {
+      try {
+        const r = await api("/api/config/import", { method: "POST", body: data });
+        if (r.issues && r.issues.length) toast(`已导入，${r.issues.length} 条无效配置被跳过（详见状态页横幅）`, 5000);
+        else toast("配置已导入");
+        await refresh(true);
+      } catch (err) { toast(err.message, 5000); }
+    },
+    { danger: true, okText: "覆盖导入" },
+  );
+});
 $("account-save").onclick = saveAccount;
 $("log-refresh").onclick = () => refreshLogs().catch(e => toast(e.message, 4000));
 $("log-days-save").onclick = async () => {

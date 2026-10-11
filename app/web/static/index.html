@@ -92,6 +92,16 @@
         <button id="rare-add-btn" class="btn sm primary"><span data-ic="plus"></span>添加</button>
       </div>
     </div>
+
+    <div class="group" id="backup-group" style="margin-top:26px">
+      <h3><span class="gi" data-ic="archive"></span>配置备份</h3>
+      <p class="hint">导出包含渠道密钥与登录凭据哈希的完整配置 JSON，请妥善保管。导入会覆盖当前渠道、任务、模板与全部设置（登录账号密码保持当前不变），立即生效且不可撤销，建议先导出一份当前配置留底。</p>
+      <div class="rare-add">
+        <button id="config-export-btn" class="btn"><span data-ic="download"></span>导出配置</button>
+        <button id="config-import-btn" class="btn"><span data-ic="upload"></span>导入配置</button>
+        <input id="config-import-file" type="file" accept=".json,application/json" hidden>
+      </div>
+    </div>
   </section>
 
   <!-- ============ 历史 ============ -->
