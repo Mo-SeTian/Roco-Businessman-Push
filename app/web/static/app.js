@@ -13,7 +13,7 @@ const esc = (t) => String(t ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&
 
 /* ---------- 图标（Lucide 风格描边 SVG） ---------- */
 const ICONS = {
-  hat:'<path d="M8.2 15 9.5 4h5L15.8 15"/><path d="M4 15h16"/><path d="M4 18.5h16"/><path d="M9.5 11h5"/>',
+  merchant:'<path fill="currentColor" stroke="none" fill-rule="evenodd" d="M12 6.5a6.4 6.4 0 1 0 0 12.8 6.4 6.4 0 0 0 0-12.8zm-1.9 4.5h3.8v3.8h-3.8z"/><path d="M10.1 6.6a1.95 1.95 0 0 1 3.9 0" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/><circle cx="12" cy="20.9" r="1.35" fill="currentColor" stroke="none"/>',
   activity:'<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
   send:'<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
   bell:'<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
