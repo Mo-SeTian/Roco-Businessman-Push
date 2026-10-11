@@ -153,7 +153,7 @@
       <h2><span data-ic="activity"></span>API 调用统计</h2>
       <button id="api-stats-refresh" class="btn sm"><span data-ic="refresh"></span>刷新</button>
     </div>
-    <p class="hint">统计远行商人数据接口的累计请求次数，包含失败请求和每次重试。使用历史数据且未请求接口时不计数。启用此功能后开始累计，重启后保留。</p>
+    <p class="hint">统计远行商人数据接口的累计请求次数，每次尝试计一次（含自动重试），按是否成功取得数据区分成功与失败。使用历史数据且未请求接口时不计数。启用此功能后开始累计，重启后保留。</p>
     <p id="api-stats-total" class="hint"></p>
     <div id="api-stats-list" class="card table-card" style="overflow-x:auto"></div>
   </section>

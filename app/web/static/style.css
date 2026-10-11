@@ -370,6 +370,29 @@ textarea{font-family:var(--mono);font-size:12.5px;line-height:1.7;resize:vertica
   #api-stats-list td:last-child{border-bottom:0}
   #api-stats-list td::before{content:attr(data-label);font-size:11px;color:var(--faint);font-weight:900;
     letter-spacing:1px;flex-shrink:0;text-align:left}
-  #api-stats-list td:nth-child(2){order:-1;display:block;border-bottom:1.5px solid var(--line-soft)}
+  #api-stats-list td:nth-child(2){order:-1;display:block;text-align:left;border-bottom:1.5px solid var(--line-soft)}
   #api-stats-list td:nth-child(2)::before{display:none}
+  /* 执行记录：窄屏表格转卡片，时间+方式作标题，渠道结果整块左对齐 */
+  #last-results table,#last-results tbody{display:block}
+  #last-results thead{display:none}
+  #last-results tr{display:flex;flex-direction:column;background:var(--card);border:1.5px solid var(--line);
+    border-radius:var(--radius-sm);padding:4px 14px;margin:9px 0}
+  #last-results td{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+    border-bottom:1px dashed var(--line-soft);padding:8px 2px;text-align:right;white-space:normal}
+  #last-results td::before{content:attr(data-label);font-size:11px;color:var(--faint);font-weight:900;
+    letter-spacing:1px;flex-shrink:0;text-align:left}
+  #last-results td:first-child{order:-1;display:block;text-align:left;border-bottom:1.5px solid var(--line-soft)}
+  #last-results td:first-child::before{display:none}
+  #last-results td:last-child{display:block;text-align:left;border-bottom:0}
+  #last-results td:last-child::before{display:block;margin-bottom:4px}
+  /* 日志：窄屏表格转卡片，内容作标题 */
+  #log-list table,#log-list tbody{display:block}
+  #log-list thead{display:none}
+  #log-list tr{display:flex;flex-direction:column;background:var(--card);border:1.5px solid var(--line);
+    border-radius:var(--radius-sm);padding:4px 14px;margin:9px 0}
+  #log-list td{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+    border-bottom:1px dashed var(--line-soft);padding:8px 2px;text-align:right;white-space:normal}
+  #log-list td:nth-child(3){border-bottom:0}
+  #log-list td:nth-child(4){order:-1;display:block;text-align:left;border-bottom:1.5px solid var(--line-soft)}
+  #log-list td:nth-child(4)::before{display:none}
 }

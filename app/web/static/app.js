@@ -164,10 +164,10 @@ function renderStatus() {
   if (runPage > runTotalPages) runPage = runTotalPages;
   if (runPage < 1) runPage = 1;
   const rows = runs.slice((runPage - 1) * runPageSize, runPage * runPageSize).flatMap(run => (run.results || []).map(e => `
-    <tr><td class="nowrap mono">${esc(String(run.time || "").slice(5, 19))}${run.reason ? `<div class="dim">${esc(run.reason)}</div>` : ""}</td>
-      <td>${esc(e.task)}${e.skipped ? ' <span class="tag off">无变化跳过</span>' : ""}</td>
-      <td class="mono">${esc(e.shop)}</td>
-      <td>${e.channels.map(c => `<span class="${c.ok ? "ok2" : "bad"}">${c.ok ? "✔" : "✘"}</span> ${esc(c.channel)}` +
+    <tr><td class="nowrap mono" data-label="执行时间">${esc(String(run.time || "").slice(5, 19))}${run.reason ? `<div class="dim">${esc(run.reason)}</div>` : ""}</td>
+      <td data-label="任务">${esc(e.task)}${e.skipped ? ' <span class="tag off">无变化跳过</span>' : ""}</td>
+      <td class="mono" data-label="商店">${esc(e.shop)}</td>
+      <td data-label="渠道结果">${e.channels.map(c => `<span class="${c.ok ? "ok2" : "bad"}">${c.ok ? "✔" : "✘"}</span> ${esc(c.channel)}` +
         (c.ok ? "" : ` <span class="bad mono">${esc(c.detail)}</span>`)).join("<br>") || "—"}</td>
     </tr>`));
   const runPager = runs.length > runPageSize ? `<div class="pager">
@@ -426,11 +426,11 @@ function renderLogRows() {
     ? lastLogs.filter(l => `${l.message} ${l.logger} ${l.level}`.toLowerCase().includes(kw))
     : lastLogs;
   $("log-list").innerHTML = rows.length
-    ? `<table><tr><th class="nowrap">时间</th><th class="nowrap">等级</th><th class="nowrap">来源</th><th>内容</th></tr>` +
-      rows.map(l => `<tr><td class="nowrap mono">${esc(l.ts)}</td>` +
-        `<td class="nowrap lv-${esc(l.level.toLowerCase())}">${esc(l.level)}</td>` +
-        `<td class="nowrap">${esc(l.logger)}</td><td class="log-msg">${logContentHTML(l.message)}</td></tr>`).join("") +
-      `</table>`
+    ? `<table><thead><tr><th class="nowrap">时间</th><th class="nowrap">等级</th><th class="nowrap">来源</th><th>内容</th></tr></thead><tbody>` +
+      rows.map(l => `<tr><td class="nowrap mono" data-label="时间">${esc(l.ts)}</td>` +
+        `<td class="nowrap lv-${esc(l.level.toLowerCase())}" data-label="等级">${esc(l.level)}</td>` +
+        `<td class="nowrap" data-label="来源">${esc(l.logger)}</td><td class="log-msg" data-label="内容">${logContentHTML(l.message)}</td></tr>`).join("") +
+      `</tbody></table>`
     : `<div class="empty">${kw ? "没有匹配的日志" : "暂无日志"}</div>`;
   const box = $("log-list");
   box.scrollTop = box.scrollHeight;
@@ -867,12 +867,14 @@ document.addEventListener("keydown", (e) => {
 });
 async function refreshAPIStats() {
   const data = await api("/api/call-stats");
-  $("api-stats-total").textContent = `累计请求 ${data.total} 次 · ${data.items.length} 个接口`;
+  $("api-stats-total").textContent =
+    `累计请求 ${data.total} 次 · 成功 ${data.ok} · 失败 ${data.fail} · ${data.items.length} 个接口`;
   $("api-stats-list").innerHTML = data.items.length ? `
-    <table><thead><tr><th>方法</th><th>接口路径</th><th>调用次数</th><th>最后调用时间</th></tr></thead>
+    <table><thead><tr><th>方法</th><th>接口路径</th><th>成功</th><th>失败</th><th>最后调用时间</th></tr></thead>
       <tbody>${data.items.map(row => `<tr><td data-label="方法"><span class="method-chip">${esc(row.method)}</span></td>
         <td data-label="接口路径" class="mono">${esc(row.path)}</td>
-        <td data-label="调用次数"><b>${esc(row.count)}</b></td>
+        <td data-label="成功"><b class="ok2">${esc(row.ok)}</b></td>
+        <td data-label="失败"><b class="${row.fail ? "bad" : ""}">${esc(row.fail)}</b></td>
         <td data-label="最后调用时间">${esc(String(row.last_called_at).slice(5, 19).replace("T", " "))}</td></tr>`).join("")}</tbody>
     </table>` : '<div class="empty">暂无 API 调用记录</div>';
 }

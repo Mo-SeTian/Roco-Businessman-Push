@@ -66,37 +66,41 @@ class MerchantClient:
 
         last_err: Exception | None = None
         for attempt in range(1, self.max_retries + 1):
-            if self.api_stats is not None:
-                self.api_stats.record("GET", path)
+            ok = False
             try:
-                resp = self.session.get(
-                    url, params=params, timeout=self.http_timeout
-                )
-            except requests.RequestException as exc:
-                last_err = exc
-            else:
-                if resp.status_code == PENDING_HTTP:
-                    last_err = RocomAPIError("数据未就绪(HTTP 202)")
-                elif resp.status_code in RETRYABLE_HTTP:
-                    last_err = RocomAPIError(f"HTTP {resp.status_code}: {resp.text[:300]}")
-                elif resp.status_code >= 400:
-                    raise RocomAPIError(
-                        f"HTTP {resp.status_code}: {resp.text[:300]}"
+                try:
+                    resp = self.session.get(
+                        url, params=params, timeout=self.http_timeout
                     )
+                except requests.RequestException as exc:
+                    last_err = exc
                 else:
-                    try:
-                        payload = resp.json()
-                    except ValueError as exc:
-                        raise RocomAPIError(f"响应不是 JSON: {resp.text[:300]}") from exc
-                    code = payload.get("code")
-                    if code in SUCCESS_CODES:
-                        return payload
-                    if code == PENDING_HTTP:  # 业务层 202：数据仍在查询中
-                        last_err = RocomAPIError("数据未就绪(code=202)")
-                    else:
+                    if resp.status_code == PENDING_HTTP:
+                        last_err = RocomAPIError("数据未就绪(HTTP 202)")
+                    elif resp.status_code in RETRYABLE_HTTP:
+                        last_err = RocomAPIError(f"HTTP {resp.status_code}: {resp.text[:300]}")
+                    elif resp.status_code >= 400:
                         raise RocomAPIError(
-                            f"接口返回失败 code={code} message={payload.get('message')!r}"
+                            f"HTTP {resp.status_code}: {resp.text[:300]}"
                         )
+                    else:
+                        try:
+                            payload = resp.json()
+                        except ValueError as exc:
+                            raise RocomAPIError(f"响应不是 JSON: {resp.text[:300]}") from exc
+                        code = payload.get("code")
+                        if code in SUCCESS_CODES:
+                            ok = True
+                            return payload
+                        if code == PENDING_HTTP:  # 业务层 202：数据仍在查询中
+                            last_err = RocomAPIError("数据未就绪(code=202)")
+                        else:
+                            raise RocomAPIError(
+                                f"接口返回失败 code={code} message={payload.get('message')!r}"
+                            )
+            finally:
+                if self.api_stats is not None:
+                    self.api_stats.record("GET", path, ok)  # 每次尝试计一次，按是否取到数据分成功/失败
             if attempt < self.max_retries:
                 log.warning("请求失败(第 %d/%d 次): %s；%ds 后重试",
                             attempt, self.max_retries, last_err, self.retry_delay)
