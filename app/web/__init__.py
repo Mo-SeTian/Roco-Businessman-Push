@@ -108,14 +108,28 @@ def create_app(store: AppConfigStore | None = None, scheduler: SchedulerService 
         cfg = app_store.load()
         if not web_auth.auth_enabled(cfg):
             return JSONResponse({"ok": True, "message": "未启用登录认证"})
-        if not web_auth.credentials_valid(
-            cfg, str(payload.get("username", "")), str(payload.get("password", ""))
-        ):
+        username = str(payload.get("username", ""))
+        password = str(payload.get("password", ""))
+        key = str(cfg.console_auth.get("username") or "admin")
+        remaining = web_auth.login_lock_remaining(key)
+        if remaining > 0:
+            raise HTTPException(status_code=429,
+                                detail=f"失败次数过多已锁定，约 {max(1, remaining // 60)} 分钟后再试")
+        if not web_auth.credentials_valid(cfg, username, password):
+            web_auth.register_login_failure(key)
             raise HTTPException(status_code=401, detail="用户名或密码不正确")
+        web_auth.register_login_success(key)
+        upgraded = web_auth.upgrade_if_legacy(cfg.console_auth, password)
+        if upgraded is not None:  # 旧版无盐 SHA256 → PBKDF2 透明升级，失败下次登录重试
+            try:
+                app_store.save_console_auth(upgraded)
+            except OSError:
+                log.warning("密码哈希升级写入失败，将在下次登录时重试", exc_info=True)
         resp = JSONResponse({"ok": True, "message": "登录成功"})
         resp.set_cookie(
             web_auth.SESSION_COOKIE, web_auth.create_session(),
             max_age=web_auth.SESSION_TTL, httponly=True, samesite="lax",
+            secure=request.url.scheme == "https",  # HTTPS 部署下禁止 cookie 走明文
         )
         return resp
 
@@ -132,7 +146,7 @@ def create_app(store: AppConfigStore | None = None, scheduler: SchedulerService 
             "config": cfg.public_dict(),
             "channel_types": CHANNEL_TYPES,
             "template_defaults": fmt.template_defaults(),
-            "scheduler": dict(app_scheduler.state),
+            "scheduler": app_scheduler.snapshot_state(),
             "config_issue": app_store.last_issue,
             "auth_username": str(cfg.console_auth.get("username") or "admin"),
             "now": datetime.now().isoformat(sep=" ", timespec="seconds"),

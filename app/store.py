@@ -7,7 +7,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 import os
@@ -19,6 +18,7 @@ from pathlib import Path
 from .channels.manifest import secret_fields
 from .config import GlobalEnv
 from .models import AppConfig, ChannelInstance
+from .security import hash_password
 
 log = logging.getLogger("store")
 
@@ -40,7 +40,7 @@ def _default_console_auth(env: GlobalEnv) -> dict:
     """默认账号密码 admin/admin；CONSOLE_USERNAME/CONSOLE_PASSWORD 仅作首次初始化覆盖。"""
     return {
         "username": env.console_username or "admin",
-        "password_sha256": _sha256(env.console_password or DEFAULT_CONSOLE_PASSWORD),
+        "password_hash": hash_password(env.console_password or DEFAULT_CONSOLE_PASSWORD),
     }
 
 
@@ -196,9 +196,18 @@ class AppConfigStore:
         with self._lock:
             payload = self._read_payload() or self._seed_from_env().to_dict()
             payload["console_auth"] = (
-                {"username": username or "admin", "password_sha256": _sha256(password)}
+                {"username": username or "admin", "password_hash": hash_password(password)}
                 if password else {}
             )
+            self._write(payload)
+
+    def save_console_auth(self, auth: dict) -> None:
+        """原样保存 console_auth（供登录时把旧 SHA256 透明升级为 PBKDF2）。"""
+        with self._lock:
+            payload = self._read_payload()
+            if payload is None:
+                return
+            payload["console_auth"] = auth
             self._write(payload)
 
     def _write(self, payload: dict) -> None:
@@ -209,7 +218,3 @@ class AppConfigStore:
             json.dump(payload, f, ensure_ascii=False, indent=2)
         os.replace(tmp, self.path)
         self.last_issue = None
-
-
-def _sha256(text: str) -> str:
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()

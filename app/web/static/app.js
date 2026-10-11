@@ -869,8 +869,10 @@ async function refreshAPIStats() {
   $("api-stats-total").textContent = `累计请求 ${data.total} 次 · ${data.items.length} 个接口`;
   $("api-stats-list").innerHTML = data.items.length ? `
     <table><thead><tr><th>方法</th><th>接口路径</th><th>调用次数</th><th>最后调用时间</th></tr></thead>
-      <tbody>${data.items.map(row => `<tr><td>${esc(row.method)}</td><td>${esc(row.path)}</td>
-        <td>${esc(row.count)}</td><td>${esc(row.last_called_at)}</td></tr>`).join("")}</tbody>
+      <tbody>${data.items.map(row => `<tr><td data-label="方法"><span class="method-chip">${esc(row.method)}</span></td>
+        <td data-label="接口路径" class="mono">${esc(row.path)}</td>
+        <td data-label="调用次数"><b>${esc(row.count)}</b></td>
+        <td data-label="最后调用时间">${esc(String(row.last_called_at).slice(5, 19).replace("T", " "))}</td></tr>`).join("")}</tbody>
     </table>` : '<div class="empty">暂无 API 调用记录</div>';
 }
 $("api-stats-refresh").onclick = () => refreshAPIStats().catch(e => toast(e.message, 4000));

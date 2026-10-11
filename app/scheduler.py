@@ -13,6 +13,7 @@ import os
 import tempfile
 import threading
 import time
+from copy import deepcopy
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -47,8 +48,14 @@ class SchedulerService:
         self._restore_snapshot()
         self._wake = threading.Event()
         self._run_lock = threading.Lock()
+        self._state_lock = threading.Lock()  # 只护 run_history 等原地修改，快照不必等长执行结束
         self._stop_flag = threading.Event()
         self._thread: threading.Thread | None = None
+
+    def snapshot_state(self) -> dict[str, Any]:
+        """完整状态深拷贝，供 Web 线程序列化，避免读到执行中被原地改写的 run_history。"""
+        with self._state_lock:
+            return deepcopy(self.state)
 
     def _restore_snapshot(self) -> None:
         try:
@@ -250,11 +257,12 @@ class SchedulerService:
                     self.state_store.set_pushed(state_key, fp)
                 report.append(entry)
 
-        self.state["last_results"] = report[-50:]
-        self.state["last_fire_at"] = datetime.now().isoformat(sep=" ", timespec="seconds")
-        runs = self.state.setdefault("run_history", [])
-        runs.insert(0, {"time": self.state["last_fire_at"], "reason": reason, "results": report})
-        del runs[50:]
+        with self._state_lock:
+            self.state["last_results"] = report[-50:]
+            self.state["last_fire_at"] = datetime.now().isoformat(sep=" ", timespec="seconds")
+            runs = self.state.setdefault("run_history", [])
+            runs.insert(0, {"time": self.state["last_fire_at"], "reason": reason, "results": report})
+            del runs[50:]
         ok_count = sum(1 for e in report for c in e["channels"] if c["ok"])
         total = sum(len(e["channels"]) for e in report)
         self.state["last_message"] = (

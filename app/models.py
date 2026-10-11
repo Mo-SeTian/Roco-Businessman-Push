@@ -237,7 +237,12 @@ class AppConfig:
         tasks: list[TaskConfig] = []
         known = {c.id for c in channels}
         for raw in data.get("tasks") or []:
-            t = TaskConfig.from_mapping(raw)
+            try:
+                t = TaskConfig.from_mapping(raw)
+            except ValueError as exc:
+                label = str((raw or {}).get("name") or (raw or {}).get("id") or "未命名任务")
+                issues.append(f"任务「{label}」配置无效已跳过：{exc}")
+                continue
             unknown = [cid for cid in t.channel_ids if cid not in known]
             if unknown:
                 issues.append(f"任务「{t.name}」引用了不存在的渠道，已忽略：{', '.join(unknown)}")
