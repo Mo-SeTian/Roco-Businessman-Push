@@ -54,14 +54,15 @@ class APIStatsTests(unittest.TestCase):
         self.assertNotIn("YOUR_API_KEY_HERE", str(result))
         self.assertNotIn("3009", str(result))
 
-    def test_auth_failure_is_one_failed_call(self):
-        client = MerchantClient("YOUR_API_KEY_HERE", api_stats=self.stats)
+    def test_auth_failure_retries_are_counted(self):
+        client = MerchantClient("YOUR_API_KEY_HERE", api_stats=self.stats, max_retries=3)
         self.addCleanup(client.session.close)
-        with patch.object(client.session, "get", return_value=Mock(status_code=401, text="invalid")):
+        with patch.object(client.session, "get", return_value=Mock(status_code=401, text="invalid")), \
+             patch("app.rocom.time.sleep"):
             with self.assertRaises(RocomAPIError):
                 client.fetch_merchant()
         result = self.stats.query()
-        self.assertEqual((result["total"], result["ok"], result["fail"]), (1, 0, 1))
+        self.assertEqual((result["total"], result["ok"], result["fail"]), (3, 0, 3))
 
     def test_failed_statistics_write_does_not_block_request(self):
         client = MerchantClient("YOUR_API_KEY_HERE", api_stats=self.stats)

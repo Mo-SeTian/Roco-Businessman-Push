@@ -67,7 +67,8 @@ class HistoryPushTests(unittest.TestCase):
         self.history.add("3009", self.payload)
         self.fetch.side_effect = RuntimeError("HTTP 503")
         self.scheduler.run_task_now("t", source="api")
-        self.send.assert_not_called()
+        self.send.assert_called_once()
+        self.assertIn("获取失败", self.send.call_args.args[1])
         self.assertEqual(self.history.current_payload("3009", self.now), self.payload)
 
     def test_other_slot_day_shop_and_before_open_do_not_match(self):

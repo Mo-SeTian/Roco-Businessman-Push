@@ -540,8 +540,10 @@ const SETTING_FIELDS = [
   ["shop_ids_text", "商店 ID", "text", "接口设置", "逗号分隔；留空 = 默认远行商店 3009", "full"],
   ["wait_ms", "接口同步等待", "number", "接口设置", "毫秒（wait_ms）", ""],
   ["http_timeout", "HTTP 超时", "number", "接口设置", "秒", ""],
-  ["max_retries", "接口最大尝试次数", "number", "接口设置", "含首次请求；202、500/502/503/504、网络异常自动重试", ""],
-  ["retry_delay", "重试间隔", "number", "接口设置", "秒", ""],
+  ["max_retries", "接口失败重试次数", "number", "接口设置", "不含首次请求；默认 10 次，0 表示不重试；包含 524 等错误", ""],
+  ["retry_delay", "接口重试间隔", "number", "接口设置", "分钟，默认 1；耗尽后向任务渠道发送失败通知", ""],
+  ["push_max_retries", "渠道失败重试次数", "number", "推送行为", "不含首次发送；默认 10 次，0 表示不重试", ""],
+  ["push_retry_delay", "渠道重试间隔", "number", "推送行为", "分钟，默认 1；普通推送和失败通知均生效", ""],
 ];
 
 const SETTING_GROUPS = [
@@ -560,7 +562,8 @@ function renderSettings() {
   const values = {
     rocom_api_key: "", shop_ids_text: (cfg.shop_ids || []).join(","),
     title_prefix: cfg.title_prefix, wait_ms: cfg.wait_ms, http_timeout: cfg.http_timeout,
-    max_retries: cfg.max_retries, retry_delay: cfg.retry_delay,
+    max_retries: cfg.max_retries - 1, retry_delay: cfg.retry_delay / 60,
+    push_max_retries: cfg.push_max_retries - 1, push_retry_delay: cfg.push_retry_delay / 60,
     log_retention_days: cfg.log_retention_days, history_days: cfg.history_days,
   };
   let html = "";
@@ -659,6 +662,16 @@ async function saveAccount() {
 
 async function saveSettings() {
   const v = (k) => $(`set-${k}`).value.trim();
+  const retry = {};
+  for (const key of ["max_retries", "retry_delay", "push_max_retries", "push_retry_delay"]) {
+    const value = v(key) === "" ? NaN : Number(v(key));
+    const count = key.endsWith("max_retries");
+    if (!Number.isFinite(value) || value < 0 || (count && !Number.isInteger(value))) {
+      toast("重试次数须为非负整数，重试间隔须为非负分钟数", 4000);
+      return;
+    }
+    retry[key] = count ? value + 1 : Math.round(value * 60);
+  }
   const body = {
     ...cfg,
     rocom_api_key: v("rocom_api_key"),
@@ -666,8 +679,7 @@ async function saveSettings() {
     title_prefix: v("title_prefix"),
     wait_ms: +v("wait_ms") || 8000,
     http_timeout: +v("http_timeout") || 30,
-    max_retries: +v("max_retries") || 3,
-    retry_delay: +v("retry_delay") || 20,
+    ...retry,
     run_on_start: $("set-run-on-start").checked,
     title_template: $("set-title-template").value,
     body_template: $("set-body-template").value,

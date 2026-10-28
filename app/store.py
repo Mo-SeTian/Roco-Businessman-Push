@@ -89,7 +89,8 @@ class AppConfigStore:
         if not str(data.get("rocom_api_key") or "").strip():
             data["rocom_api_key"] = env.api_key
         data.setdefault("shop_ids", ",".join(env.shop_ids))
-        for key in ("wait_ms", "http_timeout", "max_retries", "retry_delay"):
+        for key in ("wait_ms", "http_timeout", "max_retries", "retry_delay",
+                    "push_max_retries", "push_retry_delay"):
             data.setdefault(key, getattr(env, key))
         data.setdefault("title_prefix", env.title_prefix)
         data.setdefault("log_retention_days", env.log_retention_days)
@@ -121,8 +122,11 @@ class AppConfigStore:
             "shop_ids": ",".join(env.shop_ids),
             "wait_ms": env.wait_ms,
             "http_timeout": env.http_timeout,
+            "retry_policy_version": 2,
             "max_retries": env.max_retries,
             "retry_delay": env.retry_delay,
+            "push_max_retries": env.push_max_retries,
+            "push_retry_delay": env.push_retry_delay,
             "title_prefix": env.title_prefix,
             "log_retention_days": env.log_retention_days,
             "history_days": env.history_days,

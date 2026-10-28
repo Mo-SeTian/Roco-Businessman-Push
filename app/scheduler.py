@@ -1,7 +1,7 @@
 """多任务调度器：任务自带触发时间与渠道组合。
 
 - 触发时刻 = 所有启用任务时间的并集；到点只拉一次接口，由命中的任务各自决定推给谁；
-- 指纹按 任务+商店 记录，任务可独立开关"仅变化时推送"；
+- 指纹按 任务+商店+渠道 记录，任务可独立开关"仅变化时推送"；
 - 配置保存后 wake() 立即重算下一次执行。
 """
 
@@ -20,6 +20,7 @@ from typing import Any
 
 from .api_stats import APIStatsStore
 from .channels import send_instance
+from .channels.common import redact_text
 from .format import build_message
 from .models import AppConfig, TaskConfig
 from .rocom import MerchantClient
@@ -158,9 +159,9 @@ class SchedulerService:
 
     def _run_locked(self, reason: str, *, force: bool, task_id: str | None = None,
                     due_time: str | None = None, source: str = "api") -> str:
-        with self._run_lock:
-            if self.state["in_progress"]:
-                return "已有任务正在执行，请稍候"
+        if not self._run_lock.acquire(blocking=False):
+            return "已有任务正在执行，请稍候"
+        try:
             self.state["in_progress"] = True
             self.state["last_message"] = f"{reason}中…"
             try:
@@ -189,6 +190,8 @@ class SchedulerService:
             finally:
                 self.state["in_progress"] = False
                 self.state["last_fire_at"] = datetime.now().isoformat(sep=" ", timespec="seconds")
+        finally:
+            self._run_lock.release()
 
     def _fire(self, cfg: AppConfig, tasks: list[TaskConfig], *, force: bool, reason: str = "", source: str = "api") -> None:
         shop_keys = cfg.shop_ids or [None]
@@ -220,10 +223,14 @@ class SchedulerService:
                 if self.history is not None:
                     self.history.add(key, payloads[key])  # 成功拉取即记入历史，失败/未调用自然为空
             except Exception as exc:  # noqa: BLE001
-                log.error("[%s] 拉取失败：%s", key, exc)
-                errors[key] = str(exc)[:200]
+                detail = redact_text(str(exc))
+                if cfg.rocom_api_key:
+                    detail = detail.replace(cfg.rocom_api_key, "<REDACTED>")
+                log.error("[%s] 拉取失败：%s", key, detail)
+                errors[key] = detail[:300]
 
         report: list[dict] = []
+        failure_notices: dict[tuple[str, str], tuple[bool, str]] = {}
         pushed_any = False
         for task in tasks:
             channels = cfg.enabled_channels_of(task)
@@ -232,6 +239,25 @@ class SchedulerService:
                 entry = {"task": task.name, "shop": key, "channels": [], "skipped": False}
                 if key in errors:
                     entry["channels"].append({"channel": "(接口)", "ok": False, "detail": errors[key]})
+                    title = f"{cfg.title_prefix}｜商店数据获取失败"
+                    text = (
+                        f"商店：{shop or '3009（默认）'}\n"
+                        f"时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                        f"已耗尽接口请求次数（最多 {cfg.max_retries} 次，"
+                        f"重试间隔 {cfg.retry_delay / 60:g} 分钟）。\n"
+                        f"最后错误：{errors[key]}"
+                    )
+                    for inst in channels:
+                        notice_key = (key, inst.id)
+                        if notice_key not in failure_notices:
+                            failure_notices[notice_key] = send_instance(
+                                inst, title, text, text,
+                                max_retries=cfg.push_max_retries, retry_delay=cfg.push_retry_delay,
+                            )
+                        ok, detail = failure_notices[notice_key]
+                        entry["channels"].append({
+                            "channel": f"{inst.name}（失败通知）", "ok": ok, "detail": detail,
+                        })
                     report.append(entry)
                     continue
                 if not channels:
@@ -241,20 +267,23 @@ class SchedulerService:
 
                 msg = build_message(payloads[key], cfg)
                 fp = fingerprint(msg["fingerprint_src"])
-                state_key = f"{task.id}:{key}"
-                if not force and task.only_on_change and self.state_store.get_fingerprint(state_key) == fp:
+                pending = [inst for inst in channels if force or not task.only_on_change or
+                           self.state_store.get_fingerprint(f"{task.id}:{key}:{inst.id}") != fp]
+                if not pending:
                     entry["skipped"] = True
                     report.append(entry)
                     log.info("[任务:%s | %s] 数据无变化，跳过", task.name, key)
                     continue
 
-                for inst in channels:
-                    ok, detail = send_instance(inst, msg["title"], msg["markdown"], msg["text"])
+                for inst in pending:
+                    ok, detail = send_instance(
+                        inst, msg["title"], msg["markdown"], msg["text"],
+                        max_retries=cfg.push_max_retries, retry_delay=cfg.push_retry_delay,
+                    )
                     entry["channels"].append({"channel": inst.name, "ok": ok, "detail": detail})
                     if ok:
                         pushed_any = True
-                if any(c["ok"] for c in entry["channels"]):
-                    self.state_store.set_pushed(state_key, fp)
+                        self.state_store.set_pushed(f"{task.id}:{key}:{inst.id}", fp)
                 report.append(entry)
 
         with self._state_lock:
@@ -268,6 +297,8 @@ class SchedulerService:
         self.state["last_message"] = (
             f"完成：{ok_count}/{total} 项推送成功" if total else "无推送项"
         )
+        if errors:
+            self.state["last_message"] += f"（{len(errors)} 个商店获取失败，失败通知结果见渠道记录）"
         if not pushed_any and total and ok_count == 0:
             self.state["last_message"] += "（注意：全部失败）"
         log.info(self.state["last_message"])

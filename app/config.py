@@ -24,8 +24,10 @@ class GlobalEnv:
     shop_ids: list[str] = field(default_factory=list)
     wait_ms: int = 8000
     http_timeout: int = 30
-    max_retries: int = 3
-    retry_delay: int = 20
+    max_retries: int = 11  # 含首次请求，即失败后重试 10 次
+    retry_delay: int = 60  # 秒；WebUI 按分钟配置
+    push_max_retries: int = 11  # 含首次发送
+    push_retry_delay: int = 60  # 秒
     title_prefix: str = "洛克王国远行商人"
     config_path: str = "data/config.json"
     state_path: str = "data/state.json"
@@ -58,8 +60,10 @@ class GlobalEnv:
             shop_ids=_split(e.get("ROCOM_SHOP_ID")),
             wait_ms=_int(e.get("ROCOM_WAIT_MS"), 8000),
             http_timeout=_int(e.get("ROCOM_HTTP_TIMEOUT"), 30),
-            max_retries=_int(e.get("ROCOM_MAX_RETRIES"), 3),
-            retry_delay=_int(e.get("ROCOM_RETRY_DELAY"), 20),
+            max_retries=max(1, _int(e.get("ROCOM_MAX_RETRIES"), 11)),
+            retry_delay=max(0, _int(e.get("ROCOM_RETRY_DELAY"), 60)),
+            push_max_retries=max(1, _int(e.get("PUSH_MAX_RETRIES"), 11)),
+            push_retry_delay=max(0, _int(e.get("PUSH_RETRY_DELAY"), 60)),
             title_prefix=e.get("PUSH_TITLE_PREFIX", cls.title_prefix),
             config_path=config_path,
             state_path=state_path,

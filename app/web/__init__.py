@@ -12,6 +12,7 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.concurrency import run_in_threadpool
 
 from . import auth as web_auth
 from .. import format as fmt
@@ -212,8 +213,8 @@ def create_app(store: AppConfigStore | None = None, scheduler: SchedulerService 
     async def api_test_channel(request: Request, _=Depends(_api_guard)):
         payload = await request.json()
         draft = payload.get("instance") if isinstance(payload.get("instance"), dict) else {}
+        cfg = app_store.load()
         if payload.get("id"):  # 已保存实例：以服务端配置为基础（密钥打码回显为空）
-            cfg = app_store.load()
             saved = next((c for c in cfg.channels if c.id == str(payload["id"])), None)
             if saved is None:
                 raise HTTPException(status_code=404, detail="渠道不存在")
@@ -237,7 +238,10 @@ def create_app(store: AppConfigStore | None = None, scheduler: SchedulerService 
         now_text = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         title = "洛克王国远行商人｜测试推送"
         md = f"**{inst.name}** 渠道配置正确。\n\n- 测试时间：{now_text}"
-        ok, detail = send_instance(inst, title, md, f"{inst.name} 渠道测试推送（{now_text}）")
+        ok, detail = await run_in_threadpool(
+            send_instance, inst, title, md, f"{inst.name} 渠道测试推送（{now_text}）",
+            max_retries=cfg.push_max_retries, retry_delay=cfg.push_retry_delay,
+        )
         return JSONResponse({"ok": ok, "message": detail}, status_code=200 if ok else 400)
 
     async def api_call_stats(_=Depends(_api_guard)):
@@ -284,11 +288,13 @@ def create_app(store: AppConfigStore | None = None, scheduler: SchedulerService 
         source = payload.get("source", "api")
         if source not in ("api", "history"):
             raise HTTPException(status_code=400, detail="无效的数据来源")
-        message = app_scheduler.run_task_now(str(payload.get("id", "")).strip(), source=source)
+        message = await run_in_threadpool(
+            app_scheduler.run_task_now, str(payload.get("id", "")).strip(), source=source,
+        )
         return JSONResponse({"ok": True, "message": message})
 
     async def api_run_all(_=Depends(_api_guard)):
-        message = app_scheduler.run_all_now()
+        message = await run_in_threadpool(app_scheduler.run_all_now)
         return JSONResponse({"ok": True, "message": message})
 
     # ---- 路由注册 ----

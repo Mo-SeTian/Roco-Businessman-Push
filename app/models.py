@@ -173,8 +173,10 @@ class AppConfig:
     issues: list[str] = field(default_factory=list)  # 解析时跳过/修正的条目说明（运行时状态，不落盘）
     wait_ms: int = 8000
     http_timeout: int = 30
-    max_retries: int = 3
-    retry_delay: int = 20
+    max_retries: int = 11  # 含首次请求，即失败后重试 10 次
+    retry_delay: int = 60  # 秒；WebUI 按分钟配置
+    push_max_retries: int = 11  # 含首次发送
+    push_retry_delay: int = 60  # 秒
     title_prefix: str = "洛克王国远行商人"
     log_retention_days: int = 7    # 文件日志保留天数
     history_days: int = 30         # 调用历史保留天数
@@ -193,8 +195,11 @@ class AppConfig:
             "rare_goods": list(self.rare_goods),
             "wait_ms": self.wait_ms,
             "http_timeout": self.http_timeout,
+            "retry_policy_version": 2,
             "max_retries": self.max_retries,
             "retry_delay": self.retry_delay,
+            "push_max_retries": self.push_max_retries,
+            "push_retry_delay": self.push_retry_delay,
             "title_prefix": self.title_prefix,
             "log_retention_days": self.log_retention_days,
             "history_days": self.history_days,
@@ -225,6 +230,10 @@ class AppConfig:
 
     @classmethod
     def from_mapping(cls, data: dict) -> "AppConfig":
+        # 只升级旧版原样保存的默认值；新设置与其他自定义值保持不变。
+        if ("retry_policy_version" not in data and
+                data.get("max_retries") == 3 and data.get("retry_delay") == 20):
+            data = {**data, "max_retries": 11, "retry_delay": 60}
         # 单个渠道/任务无效只跳过该条并记录说明，不再让整份配置降级为默认
         channels: list[ChannelInstance] = []
         issues: list[str] = []
@@ -254,8 +263,10 @@ class AppConfig:
             rare_goods=_parse_rare_goods(data.get("rare_goods")),
             wait_ms=_int(data.get("wait_ms"), 8000),
             http_timeout=_int(data.get("http_timeout"), 30),
-            max_retries=_int(data.get("max_retries"), 3),
-            retry_delay=_int(data.get("retry_delay"), 20),
+            max_retries=max(1, _int(data.get("max_retries"), 11)),
+            retry_delay=max(0, _int(data.get("retry_delay"), 60)),
+            push_max_retries=max(1, _int(data.get("push_max_retries"), 11)),
+            push_retry_delay=max(0, _int(data.get("push_retry_delay"), 60)),
             title_prefix=str(data.get("title_prefix") or "").strip() or "洛克王国远行商人",
             log_retention_days=_int(data.get("log_retention_days"), 7),
             history_days=_int(data.get("history_days"), 30),
